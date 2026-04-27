@@ -1,2990 +1,1723 @@
-﻿import React, {
-  startTransition,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
-  Ambulance,
+  AlertTriangle,
   BarChart3,
-  Bell,
-  CheckCircle2,
   ClipboardList,
-  Clock,
-  FileText,
-  Filter,
-  HeartPulse,
+  FileDown,
   Home,
-  LoaderCircle,
-  Lock,
+  LogOut,
   MapPin,
   Menu,
   Plus,
   Search,
   ShieldCheck,
-  UserRound,
   Users,
   X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const navItems = [
-  { key: "dashboard", label: "Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©", icon: Home, permission: "dashboard:view" },
-  { key: "new", label: "Ù…Ø¨Ø§Ø´Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø©", icon: Plus, permission: "incidents:create" },
-  { key: "incidents", label: "Ø³Ø¬Ù„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª", icon: ClipboardList, permission: "incidents:view" },
-  { key: "reports", label: "Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ù…ÙˆØ³Ù…", icon: BarChart3, permission: "reports:view" },
-  { key: "users", label: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ† ÙˆØ§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª", icon: Users, permission: "users:view" },
-  { key: "settings", label: "Ø§Ù„Ø£Ù…Ø§Ù† ÙˆØ§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª", icon: ShieldCheck, permission: "security:view" },
-];
-
-const permissionSections = [
-  {
-    title: "Ø§Ù„ØªØ´ØºÙŠÙ„ Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠ",
-    items: [
-      { key: "dashboard:view", label: "Ø¹Ø±Ø¶ Ù„ÙˆØ­Ø© Ø§Ù„Ù…Ø¤Ø´Ø±Ø§Øª" },
-      { key: "incidents:create", label: "Ø¥Ù†Ø´Ø§Ø¡ Ù…Ø¨Ø§Ø´Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø©" },
-      { key: "incidents:view", label: "Ø¹Ø±Ø¶ Ø³Ø¬Ù„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª" },
-      { key: "incidents:approve", label: "Ø§Ø¹ØªÙ…Ø§Ø¯ ÙˆØ¥ØºÙ„Ø§Ù‚ Ø§Ù„Ø­Ø§Ù„Ø§Øª" },
-    ],
-  },
-  {
-    title: "Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª ÙˆØ§Ù„ØªÙ‚Ø§Ø±ÙŠØ±",
-    items: [
-      { key: "reports:view", label: "Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±" },
-      { key: "reports:export", label: "ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±" },
-      { key: "patients:limited_identity", label: "Ø¹Ø±Ø¶ Ø¨ÙŠØ§Ù†Ø§Øª ØªØ¹Ø±ÙŠÙ Ù…Ø­Ø¯ÙˆØ¯Ø©" },
-    ],
-  },
-  {
-    title: "Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙˆÙ† ÙˆØ§Ù„Ø£Ù…Ù†",
-    items: [
-      { key: "users:view", label: "Ø¹Ø±Ø¶ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª" },
-      { key: "users:manage", label: "Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª ÙˆØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø£Ø¯ÙˆØ§Ø±" },
-      { key: "security:view", label: "Ø¹Ø±Ø¶ Ø³ÙŠØ§Ø³Ø§Øª Ø§Ù„Ø£Ù…Ù†" },
-      { key: "security:manage", label: "ØªØ¹Ø¯ÙŠÙ„ Ø³ÙŠØ§Ø³Ø§Øª Ø§Ù„Ø£Ù…Ù† ÙˆØ§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª" },
-    ],
-  },
-];
-
-const roleTemplates = [
-  {
-    key: "field_responder",
-    label: "Ù…Ø³Ø¹Ù Ù…ÙŠØ¯Ø§Ù†ÙŠ",
-    description: "ÙŠÙÙ†Ø´Ø¦ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª ÙˆÙŠØ·Ø§Ù„Ø¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…ÙƒÙ„Ù Ø¨Ù‡Ø§ Ø¯Ø§Ø®Ù„ Ù†Ø·Ø§Ù‚Ù‡.",
-    permissions: ["dashboard:view", "incidents:create", "incidents:view"],
-  },
-  {
-    key: "team_lead",
-    label: "Ù‚Ø§Ø¦Ø¯ ÙØ±ÙŠÙ‚",
-    description: "ÙŠØªØ§Ø¨Ø¹ Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠØ© ÙˆÙŠØ¹ØªÙ…Ø¯ Ù…Ø§ ÙŠØ±Ø¯ Ù…Ù† Ø£ÙØ±Ø§Ø¯ Ø§Ù„ÙØ±ÙŠÙ‚.",
-    permissions: [
-      "dashboard:view",
-      "incidents:create",
-      "incidents:view",
-      "incidents:approve",
-      "reports:view",
-    ],
-  },
-  {
-    key: "operations_supervisor",
-    label: "Ù…Ø´Ø±Ù Ø¹Ù…Ù„ÙŠØ§Øª",
-    description: "ÙŠØ¯ÙŠØ± Ø§Ù„ØªØºØ·ÙŠØ© Ø§Ù„ØªØ´ØºÙŠÙ„ÙŠØ© ÙˆÙŠØªØ§Ø¨Ø¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† Ø¯ÙˆÙ† ØµÙ„Ø§Ø­ÙŠØ§Øª Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ù†Ø¸Ø§Ù….",
-    permissions: [
-      "dashboard:view",
-      "incidents:create",
-      "incidents:view",
-      "incidents:approve",
-      "reports:view",
-      "reports:export",
-      "patients:limited_identity",
-      "users:view",
-      "users:manage",
-    ],
-  },
-  {
-    key: "statistics_officer",
-    label: "Ù…Ø³Ø¤ÙˆÙ„ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª",
-    description: "ÙŠØ³ØªØ¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ© ÙˆÙŠØµØ¯Ø± Ø§Ù„Ù…Ø¤Ø´Ø±Ø§Øª Ø§Ù„Ù…Ø¹ØªÙ…Ø¯Ø©.",
-    permissions: [
-      "dashboard:view",
-      "incidents:view",
-      "reports:view",
-      "reports:export",
-    ],
-  },
-  {
-    key: "system_admin",
-    label: "Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù…",
-    description: "ÙŠÙ…Ù„Ùƒ Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª Ø§Ù„ÙƒØ§Ù…Ù„Ø© Ø¹Ù„Ù‰ Ø§Ù„ØªØ´ØºÙŠÙ„ ÙˆØ§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† ÙˆØ³ÙŠØ§Ø³Ø§Øª Ø§Ù„Ø£Ù…Ø§Ù†.",
-    permissions: [
-      "dashboard:view",
-      "incidents:create",
-      "incidents:view",
-      "incidents:approve",
-      "reports:view",
-      "reports:export",
-      "patients:limited_identity",
-      "users:view",
-      "users:manage",
-      "security:view",
-      "security:manage",
-    ],
-  },
-];
-
-const initialUsers = [
-  {
-    id: 1,
-    name: "ÙÙŠØµÙ„ Ø§Ù„Ø¹Ø³ÙŠØ±ÙŠ",
-    phone: "0500000001",
-    roleKey: "field_responder",
-    status: "Ù†Ø´Ø·",
-    scope: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©",
-    team: "ÙØ±ÙŠÙ‚ Ø§Ù„Ø­Ø±Ù… 1",
-  },
-  {
-    id: 2,
-    name: "Ø¹Ù„ÙŠ Ø§Ù„Ù…Ø·ÙŠØ±ÙŠ",
-    phone: "0500000002",
-    roleKey: "operations_supervisor",
-    status: "Ù†Ø´Ø·",
-    scope: "Ø§Ù„ÙƒÙ„",
-    team: "Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª",
-  },
-  {
-    id: 3,
-    name: "Ù…Ø¯ÙŠØ± Ø§Ù„Ù†Ø¸Ø§Ù…",
-    phone: "0500000003",
-    roleKey: "system_admin",
-    status: "Ù†Ø´Ø·",
-    scope: "Ø§Ù„ÙƒÙ„",
-    team: "Ø§Ù„Ø¥Ø¯Ø§Ø±Ø©",
-  },
-];
-
-const initialAuditLog = [];
-
-const defaultSecuritySettings = {
-  requireOtpForSupervisors: true,
-  restrictExports: true,
-  retentionPolicy: "90 ÙŠÙˆÙ…Ù‹Ø§",
-};
-
-const initialDepartments = [
-  "Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª",
-  "Ø§Ù„Ø¥Ø³Ø¹Ø§Ù Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠ",
-  "Ø§Ù„Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª",
-  "Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…ØªØ·ÙˆØ¹ÙŠÙ†",
-  "Ø§Ù„Ø¯Ø¹Ù… Ø§Ù„Ù„ÙˆØ¬Ø³ØªÙŠ",
-];
-
-const initialCities = ["Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©"];
-
-const initialSites = [
-  { city: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", name: "Ø§Ù„Ù…Ø³Ø¬Ø¯ Ø§Ù„Ø­Ø±Ø§Ù…" },
-  { city: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", name: "Ù…Ù†Ù‰" },
-  { city: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", name: "Ø¹Ø±ÙØ§Øª" },
-  { city: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", name: "Ù…Ø²Ø¯Ù„ÙØ©" },
-  { city: "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©", name: "Ø§Ù„Ù…Ø³Ø¬Ø¯ Ø§Ù„Ù†Ø¨ÙˆÙŠ" },
-  { city: "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©", name: "Ù…Ø­Ø·Ø© Ù†Ù‚Ù„" },
-  { city: "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©", name: "Ø³ÙƒÙ† Ø§Ù„Ø­Ø¬Ø§Ø¬" },
-];
-
 const STORAGE_KEYS = {
-  users: "hajj_portal_users",
-  incidents: "hajj_portal_incidents",
-  auditLog: "hajj_portal_audit_log",
-  security: "hajj_portal_security",
-  departments: "hajj_portal_departments",
-  cities: "hajj_portal_cities",
-  sites: "hajj_portal_sites",
-  currentUserId: "hajj_portal_current_user_id",
-  incidentSequence: "hajj_portal_incident_sequence",
-  notifications: "hajj_portal_notifications",
+  users: "hajj_users",
+  incidents: "hajj_incidents",
+  departments: "enjad_departments",
+  cities: "enjad_cities",
+  sites: "enjad_sites",
+  auditLogs: "enjad_audit_logs",
+  incidentSequence: "hajj_incident_sequence",
+  currentUserId: "enjad_current_user_id",
 };
 
 const DEMO_PIN = "1234";
-const SEASON_CODE = "1447";
 
-const initialIncidents = [
-  {
-    id: "HAJJ-1447-001",
-    type: "Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ",
-    city: "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©",
-    location: "Ø§Ù„Ù…Ø³Ø¬Ø¯ Ø§Ù„Ø­Ø±Ø§Ù… - Ø³Ø§Ø­Ø© Ø§Ù„Ø­Ø±Ù…",
-    status: "Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©",
-    patients: 1,
-    severity: "Ù…ØªÙˆØ³Ø·",
-    time: "10:42",
-    source: "Ø¨Ù„Ø§Øº Ù…Ø­Ø§Ù„ Ù…Ù† Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø±",
-    rcNumber: "997-12345",
-    category: "Ø­Ø§Ø¬",
-    intervention: "",
-    handover: "",
-    team: "ÙØ±ÙŠÙ‚ Ø§Ù„Ø­Ø±Ù… 1",
-    createdById: 1,
-    createdBy: "ÙÙŠØµÙ„ Ø§Ù„Ø¹Ø³ÙŠØ±ÙŠ",
-    notes: "ØªÙ… Ø§Ù„ØªØ¨Ø±ÙŠØ¯ ÙˆØªØ³Ù„ÙŠÙ… Ø§Ù„Ø­Ø§Ù„Ø© Ù„Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø±",
+const PAGE_META = {
+  dashboard: {
+    label: "الرئيسية",
+    subtitle: "متابعة موسم الحج والعمرة",
+    icon: Home,
   },
-  {
-    id: "HAJJ-1447-002",
-    type: "Ø¥ØºÙ…Ø§Ø¡",
-    city: "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©",
-    location: "Ø§Ù„Ù…Ø³Ø¬Ø¯ Ø§Ù„Ù†Ø¨ÙˆÙŠ - Ø¨Ø§Ø¨ Ø§Ù„Ø³Ù„Ø§Ù…",
-    status: "Ù…ØºÙ„Ù‚",
-    patients: 1,
-    severity: "Ø¨Ø³ÙŠØ·",
-    time: "09:15",
-    source: "Ù…Ø¨Ø§Ø´Ø±Ø© Ø°Ø§ØªÙŠØ© Ù…Ù† Ø§Ù„ÙØ±ÙŠÙ‚",
-    rcNumber: "",
-    category: "Ù…Ø¹ØªÙ…Ø±",
-    intervention: "",
-    handover: "",
-    team: "ÙØ±ÙŠÙ‚ Ø§Ù„Ù†Ø¨ÙˆÙŠ 1",
-    createdById: 2,
-    createdBy: "Ø¹Ù„ÙŠ Ø§Ù„Ù…Ø·ÙŠØ±ÙŠ",
-    notes: "Ø¹Ù„Ø§Ø¬ Ø¨Ø§Ù„Ù…ÙˆÙ‚Ø¹",
+  new: {
+    label: "مباشرة بلاغ جديد",
+    subtitle: "تسجيل حالة إسعافية جديدة",
+    icon: Plus,
   },
-];
+  incidents: {
+    label: "سجل المباشرات",
+    subtitle: "عرض ومتابعة جميع المباشرات حسب الصلاحية",
+    icon: ClipboardList,
+  },
+  reports: {
+    label: "إحصائيات الموسم",
+    subtitle: "مؤشرات مختصرة وتصدير CSV",
+    icon: BarChart3,
+  },
+  users: {
+    label: "المستخدمون والصلاحيات",
+    subtitle: "إدارة الحسابات والأدوار التشغيلية",
+    icon: Users,
+  },
+  security: {
+    label: "الأمان والصلاحيات",
+    subtitle: "إدارة المدن والمواقع وسجل التتبع",
+    icon: ShieldCheck,
+  },
+};
 
-const initialNotifications = [
+const ROLE_ACCESS = {
+  "مسعف ميداني": ["dashboard", "new", "incidents"],
+  "قائد فريق": ["dashboard", "new", "incidents", "reports"],
+  "مشرف عمليات": ["dashboard", "new", "incidents", "reports", "users"],
+  "مسؤول إحصائيات": ["dashboard", "reports"],
+  "مدير النظام": ["dashboard", "new", "incidents", "reports", "users", "security"],
+};
+
+const DEFAULT_USERS = [
   {
     id: 1,
-    title: "Ø¨Ù„Ø§Øº Ø­Ø±Ø¬ Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯",
-    body: "Ø­Ø§Ù„Ø© Ø¶ÙŠÙ‚ ØªÙ†ÙØ³ Ù„Ø­Ø§Ø¬ ÙÙŠ Ù…Ø´Ø¹Ø± Ù…Ù†Ù‰ Ù…Ø§ Ø²Ø§Ù„Øª Ø¨Ø­Ø§Ø¬Ø© Ø¥Ù„Ù‰ Ø§Ø³ØªÙƒÙ…Ø§Ù„ Ø§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ©.",
-    time: "Ù…Ù†Ø° 4 Ø¯Ù‚Ø§Ø¦Ù‚",
-    tone: "danger",
+    name: "فيصل العسيري",
+    mobile: "0500000001",
+    role: "مسعف ميداني",
+    city: "مكة المكرمة",
+    team: "فريق الحرم 1",
+    status: "نشط",
   },
   {
     id: 2,
-    title: "ÙˆØµÙˆÙ„ Ø­Ø§Ù„Ø© Ø¬Ø¯ÙŠØ¯Ø© Ù…Ù† Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø± Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠ",
-    body: "ØªÙ…Øª Ø¥Ø¶Ø§ÙØ© Ø¨Ù„Ø§Øº Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ ÙÙŠ Ù…Ø­ÙŠØ· Ø§Ù„Ø­Ø±Ù… ÙˆØ±Ø¨Ø·Ù‡ Ø¨Ø§Ù„ÙØ±ÙŠÙ‚ Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠ Ø§Ù„Ø«Ø§Ù†ÙŠ.",
-    time: "Ù…Ù†Ø° 11 Ø¯Ù‚ÙŠÙ‚Ø©",
-    tone: "default",
+    name: "علي المطيري",
+    mobile: "0500000002",
+    role: "مشرف عمليات",
+    city: "الكل",
+    team: "العمليات",
+    status: "نشط",
+  },
+  {
+    id: 3,
+    name: "مدير النظام",
+    mobile: "0500000003",
+    role: "مدير النظام",
+    city: "الكل",
+    team: "الإدارة",
+    status: "نشط",
   },
 ];
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const DEFAULT_DEPARTMENTS = [
+  "العمليات",
+  "الإسعاف الميداني",
+  "الإحصائيات",
+  "إدارة المتطوعين",
+  "الدعم اللوجستي",
+];
 
-const baseInputClassName =
-  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-50";
+const DEFAULT_CITIES = ["مكة المكرمة", "المدينة المنورة"];
 
-const statusStyles = {
-  "Ù…ØºÙ„Ù‚": "bg-emerald-50 text-emerald-700",
-  "Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©": "bg-amber-50 text-amber-700",
-  "Ù‚ÙŠØ¯ Ø§Ù„Ø§Ø³ØªÙƒÙ…Ø§Ù„": "bg-blue-50 text-blue-700",
-};
+const DEFAULT_SITES = [
+  { city: "مكة المكرمة", name: "المسجد الحرام" },
+  { city: "مكة المكرمة", name: "منى" },
+  { city: "مكة المكرمة", name: "عرفات" },
+  { city: "مكة المكرمة", name: "مزدلفة" },
+  { city: "المدينة المنورة", name: "المسجد النبوي" },
+  { city: "المدينة المنورة", name: "محطة نقل" },
+  { city: "المدينة المنورة", name: "سكن الحجاج" },
+];
 
-const roleStyles = {
-  "Ù…Ø³Ø¹Ù Ù…ÙŠØ¯Ø§Ù†ÙŠ": "bg-sky-50 text-sky-700",
-  "Ù‚Ø§Ø¦Ø¯ ÙØ±ÙŠÙ‚": "bg-amber-50 text-amber-700",
-  "Ù…Ø´Ø±Ù Ø¹Ù…Ù„ÙŠØ§Øª": "bg-red-50 text-red-700",
-  "Ù…Ø³Ø¤ÙˆÙ„ Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª": "bg-emerald-50 text-emerald-700",
-};
-
-function getRoleByKey(roleKey) {
-  return roleTemplates.find((role) => role.key === roleKey);
-}
-
-function hasPermission(user, permission) {
-  if (!user) {
-    return false;
-  }
-
-  const role = getRoleByKey(user.roleKey);
-  return role?.permissions.includes(permission) || false;
-}
-
-function canAccessPage(user, pageKey) {
-  const navItem = navItems.find((item) => item.key === pageKey);
-
-  if (!navItem?.permission) {
-    return true;
-  }
-
-  return hasPermission(user, navItem.permission);
-}
-
-function getScopeCities(scope = "") {
-  if (scope.includes("Ù…ÙƒØ©") && scope.includes("Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©")) {
-    return ["Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©"];
-  }
-  if (scope.includes("Ù…ÙƒØ©") || scope.includes("Ù…Ù†Ù‰") || scope.includes("Ø¹Ø±ÙØ§Øª")) {
-    return ["Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©"];
-  }
-  if (scope.includes("Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©")) {
-    return ["Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©"];
-  }
-
-  return [];
-}
-
-function getSitesForCity(sites, city) {
-  return sites
-    .filter((site) => site.city === city)
-    .map((site) => site.name);
-}
-
-function getVisibleIncidents(incidents, user) {
-  if (!user) {
-    return [];
-  }
-
-  if (
-    user.roleKey === "operations_supervisor" ||
-    user.roleKey === "statistics_officer" ||
-    user.roleKey === "system_admin"
-  ) {
-    return incidents;
-  }
-
-  if (user.roleKey === "team_lead") {
-    const scopeCities = getScopeCities(user.scope);
-    return incidents.filter(
-      (incident) => incident.team === user.team || scopeCities.includes(incident.city),
-    );
-  }
-
-  return incidents.filter(
-    (incident) => incident.createdById === user.id || incident.createdBy === user.name,
-  );
-}
+const DEFAULT_INCIDENTS = [
+  {
+    id: "HAJJ-1447-001",
+    source: "بلاغ محال من الهلال الأحمر",
+    rc: "997-12345",
+    city: "مكة المكرمة",
+    location: "المسجد الحرام - ساحة الحرم",
+    type: "إجهاد حراري",
+    severity: "متوسط",
+    patientCount: 1,
+    category: "حاج",
+    intervention: "تبريد/كمادات",
+    handover: "تسليم للهلال الأحمر",
+    status: "قيد المراجعة",
+    createdBy: "فيصل العسيري",
+    team: "فريق الحرم 1",
+    time: "10:42",
+    notes: "تم التبريد وتسليم الحالة للهلال الأحمر",
+  },
+  {
+    id: "HAJJ-1447-002",
+    source: "مباشرة ذاتية من الفريق",
+    rc: "",
+    city: "المدينة المنورة",
+    location: "المسجد النبوي - باب السلام",
+    type: "إغماء",
+    severity: "بسيط",
+    patientCount: 1,
+    category: "زائر",
+    intervention: "تقييم أولي",
+    handover: "علاج بالموقع",
+    status: "مغلق",
+    createdBy: "علي المطيري",
+    team: "فريق النبوي 1",
+    time: "09:15",
+    notes: "علاج بالموقع",
+  },
+];
 
 function readStorage(key, fallback) {
-  if (typeof window === "undefined") {
-    return fallback;
-  }
-
   try {
-    const rawValue = window.localStorage.getItem(key);
-    return rawValue ? JSON.parse(rawValue) : fallback;
-  } catch (error) {
-    console.error(`Unable to parse localStorage key: ${key}`, error);
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
     return fallback;
   }
 }
 
-function deriveIncidentSequence(incidents) {
-  return incidents
+function saveStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function syncIncidentSequence(incidents) {
+  const maxExisting = incidents
     .map((incident) => {
-      const match = String(incident.id || "").match(/HAJJ-\d+-(\d+)/);
+      const match = String(incident.id || "").match(/HAJJ-1447-(\d+)/);
       return match ? Number(match[1]) : 0;
     })
-    .reduce((max, value) => Math.max(max, value), 0);
+    .reduce((max, current) => Math.max(max, current), 0);
+
+  const saved = Number(localStorage.getItem(STORAGE_KEYS.incidentSequence) || "0");
+  if (maxExisting > saved) {
+    localStorage.setItem(STORAGE_KEYS.incidentSequence, String(maxExisting));
+  }
 }
 
-function getNextIncidentNumber(sequence) {
-  return `HAJJ-${SEASON_CODE}-${String(sequence).padStart(4, "0")}`;
+function getNextIncidentNumber() {
+  const current = Number(localStorage.getItem(STORAGE_KEYS.incidentSequence) || "0") + 1;
+  localStorage.setItem(STORAGE_KEYS.incidentSequence, String(current));
+  return `HAJJ-1447-${String(current).padStart(4, "0")}`;
 }
 
-function Field({
-  label,
-  placeholder,
-  type = "text",
-  value,
-  onChange,
-  min,
-}) {
+function createAuditEntry(currentUser, action, details) {
+  return {
+    time: new Date().toLocaleString("ar-SA"),
+    user: currentUser ? `${currentUser.name} - ${currentUser.role}` : "النظام",
+    action,
+    details,
+  };
+}
+
+function allowedPages(role) {
+  return ROLE_ACCESS[role] || [];
+}
+
+function canAccess(role, page) {
+  return allowedPages(role).includes(page);
+}
+
+function visibleIncidents(currentUser, incidents) {
+  if (!currentUser) return [];
+  if (["مشرف عمليات", "مدير النظام", "مسؤول إحصائيات"].includes(currentUser.role)) {
+    return incidents;
+  }
+  if (currentUser.role === "قائد فريق") {
+    return incidents.filter(
+      (incident) => incident.team === currentUser.team || incident.city === currentUser.city,
+    );
+  }
+  return incidents.filter((incident) => incident.createdBy === currentUser.name);
+}
+
+function statusBadgeClass(status) {
+  if (status === "مغلق") return "bg-emerald-100 text-emerald-700";
+  if (status === "قيد المراجعة") return "bg-amber-100 text-amber-700";
+  if (status === "مسودة") return "bg-slate-100 text-slate-700";
+  return "bg-sky-100 text-sky-700";
+}
+
+function severityBadgeClass(severity) {
+  if (severity === "حرج" || severity === "وفاة") return "bg-red-100 text-red-700";
+  if (severity === "متوسط") return "bg-amber-100 text-amber-700";
+  return "bg-emerald-100 text-emerald-700";
+}
+
+function exportIncidentsCsv(incidents) {
+  const headers = [
+    "id",
+    "source",
+    "rc",
+    "city",
+    "location",
+    "type",
+    "severity",
+    "patientCount",
+    "category",
+    "intervention",
+    "handover",
+    "status",
+    "createdBy",
+    "team",
+    "time",
+    "notes",
+  ];
+
+  const rows = [
+    headers,
+    ...incidents.map((incident) =>
+      headers.map((key) => String(incident[key] ?? "").replaceAll(",", " ")),
+    ),
+  ];
+
+  const csv = rows.map((row) => row.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "hajj_incidents.csv";
+  link.click();
+}
+
+function HeroLogo() {
   return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-      </span>
-      <input
-        type={type}
-        min={min}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className={baseInputClassName}
-      />
-    </label>
-  );
-}
-
-function SelectField({ label, options, value, onChange }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={onChange}
-        className={baseInputClassName}
-      >
-        {options.map((option) => {
-          const normalizedOption =
-            typeof option === "string"
-              ? { value: option, label: option }
-              : option;
-
-          return (
-            <option
-              key={normalizedOption.value}
-              value={normalizedOption.value}
-            >
-              {normalizedOption.label}
-            </option>
-          );
-        })}
-      </select>
-    </label>
-  );
-}
-
-function StatCard({ title, value, icon: Icon, hint }) {
-  return (
-    <Card className="rounded-3xl border-0 shadow-sm">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm text-slate-500">{title}</p>
-            <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-            <p className="mt-2 text-xs text-slate-400">{hint}</p>
-          </div>
-          <div className="rounded-2xl bg-red-50 p-3 text-red-600">
-            <Icon size={24} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StatusBadge({ status }) {
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${
-        statusStyles[status] || "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {status}
-    </span>
-  );
-}
-
-function Drawer({ open, onClose, children }) {
-  return (
-    <AnimatePresence>
-      {open ? (
-        <>
-          <motion.button
-            type="button"
-            onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-slate-950/45 lg:hidden"
-            aria-label="Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø©"
-          />
-          <motion.aside
-            initial={{ x: 320 }}
-            animate={{ x: 0 }}
-            exit={{ x: 320 }}
-            transition={{ type: "spring", stiffness: 280, damping: 28 }}
-            className="fixed inset-y-0 right-0 z-50 w-[88vw] max-w-sm bg-white p-5 shadow-2xl lg:hidden"
-          >
-            {children}
-          </motion.aside>
-        </>
-      ) : null}
-    </AnimatePresence>
-  );
-}
-
-function NotificationPanel({ open, notifications, onClose }) {
-  return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          className="absolute left-0 top-16 z-30 w-[92vw] max-w-sm rounded-3xl border border-slate-100 bg-white p-4 shadow-2xl shadow-slate-200/80"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-slate-900">Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª</h3>
-              <p className="text-xs text-slate-500">
-                Ø¢Ø®Ø± Ø§Ù„ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ù…Ø±ØªØ¨Ø·Ø© Ø¨Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-2xl p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-            >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {notifications.map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-2xl border p-4 ${
-                  item.tone === "danger"
-                    ? "border-red-100 bg-red-50/80"
-                    : "border-slate-100 bg-slate-50"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-slate-900">{item.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {item.body}
-                    </p>
-                  </div>
-                  <Bell
-                    size={16}
-                    className={
-                      item.tone === "danger" ? "text-red-500" : "text-slate-400"
-                    }
-                  />
-                </div>
-                <p className="mt-3 text-xs text-slate-400">{item.time}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
-}
-
-function FloatingToasts({ items }) {
-  return (
-    <div className="pointer-events-none fixed bottom-24 left-4 right-4 z-50 flex flex-col gap-3 lg:left-auto lg:right-6 lg:top-6 lg:bottom-auto lg:w-96">
-      <AnimatePresence>
-        {items.map((item) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.98 }}
-            className={`rounded-3xl border px-4 py-3 shadow-xl ${
-              item.tone === "success"
-                ? "border-emerald-100 bg-white"
-                : item.tone === "danger"
-                  ? "border-red-100 bg-white"
-                  : "border-slate-100 bg-white"
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className={`mt-0.5 rounded-2xl p-2 ${
-                  item.tone === "success"
-                    ? "bg-emerald-50 text-emerald-600"
-                    : item.tone === "danger"
-                      ? "bg-red-50 text-red-600"
-                      : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                <Bell size={16} />
-              </div>
-              <div>
-                <p className="font-medium text-slate-900">{item.title}</p>
-                <p className="text-sm text-slate-500">{item.body}</p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </AnimatePresence>
+    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/95 text-3xl shadow-lg">
+      🚑
     </div>
   );
 }
 
 function LoginScreen({
-  onLogin,
-  isSubmitting,
   users,
   selectedUserId,
   onSelectUser,
   pin,
   onPinChange,
+  onLogin,
 }) {
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-950 text-white">
-      <div className="grid min-h-screen lg:grid-cols-2">
-        <div className="relative hidden overflow-hidden lg:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-slate-950" />
-          <div
-            className="absolute inset-0 opacity-20"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 20% 20%, white 0, transparent 28%), radial-gradient(circle at 80% 70%, white 0, transparent 22%)",
-            }}
-          />
-          <div className="relative flex h-full flex-col justify-between p-12">
-            <div className="flex items-center gap-3">
-              <div className="rounded-3xl bg-white/10 p-4 backdrop-blur">
-                <Ambulance size={34} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">
-                  Ø¬Ù…Ø¹ÙŠØ© Ø¥Ù†Ø¬Ø§Ø¯ Ù„Ù„Ø¨Ø­Ø« ÙˆØ§Ù„Ø¥Ù†Ù‚Ø§Ø°
-                </h1>
-                <p className="text-sm text-white/70">
-                  Ø¨ÙˆØ§Ø¨Ø© Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ø¥Ø³Ø¹Ø§ÙÙŠØ© Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©
-                </p>
-              </div>
-            </div>
-            <div className="max-w-md">
-              <h2 className="text-4xl font-black leading-tight">
-                Ù…Ù†ØµØ© ØªØ´ØºÙŠÙ„ÙŠØ© Ø³Ø±ÙŠØ¹Ø© Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ø­Ø§Ù„Ø§Øª ÙˆØªØ­ÙˆÙŠÙ„Ù‡Ø§ Ø¥Ù„Ù‰ Ù…Ø¤Ø´Ø±Ø§Øª Ø¯Ù‚ÙŠÙ‚Ø©.
-              </h2>
-              <p className="mt-5 text-white/70">
-                Ù…ØµÙ…Ù…Ø© Ù„Ù…ÙˆØ³Ù… Ø§Ù„Ø­Ø¬ ÙˆØ§Ù„Ø¹Ù…Ø±Ø©: Ø³Ø±Ø¹Ø© Ù…Ø¨Ø§Ø´Ø±Ø©ØŒ ØªÙˆØ«ÙŠÙ‚ Ù…Ø®ØªØµØ±ØŒ ÙˆØµÙ„Ø§Ø­ÙŠØ§Øª
-                ÙˆØ§Ø¶Ø­Ø© Ù„ÙƒÙ„ ÙØ±ÙŠÙ‚.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-white/70">
-              <ShieldCheck size={18} />
-              <span>Ø­Ù…Ø§ÙŠØ© Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ÙŠÙ† ÙˆØªÙ‚Ù„ÙŠÙ„ Ø§Ù„ÙˆØµÙˆÙ„ Ø­Ø³Ø¨ Ø§Ù„Ø¯ÙˆØ±</span>
-            </div>
+    <div className="grid min-h-screen bg-slate-50 lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="hidden bg-[linear-gradient(135deg,#991b1b,#450a0a,#020617)] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="space-y-6">
+          <HeroLogo />
+          <div className="space-y-3">
+            <h1 className="text-4xl font-black leading-snug">
+              جمعية إنجاد للبحث والإنقاذ
+            </h1>
+            <p className="max-w-2xl text-lg leading-8 text-slate-200">
+              بوابة مباشرة الحالات الإسعافية للحجاج والمعتمرين في مكة المكرمة والمدينة
+              المنورة، مع إدارة صلاحيات وسجل متابعة محلي جاهز للعرض والرفع.
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-center bg-slate-50 p-6 text-slate-900">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-md"
-          >
-            <div className="mb-8 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-600 text-white">
-                <Ambulance size={32} />
-              </div>
-              <h1 className="text-2xl font-bold">Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©</h1>
-              
-            </div>
-            <Card className="rounded-3xl border-0 shadow-xl shadow-slate-200/70">
-              <CardContent className="p-8">
-                <h2 className="text-2xl font-bold">ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„</h2>
-                <p className="mt-2 text-sm text-slate-500">
-                  Ø§Ø®ØªØ± Ø§Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„Ù†Ø´Ø· ÙˆØ£Ø¯Ø®Ù„ Ø±Ù…Ø² Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø§Ù„ØªØ¬Ø±ÙŠØ¨ÙŠ Ù„Ù„ÙˆØµÙˆÙ„ Ø¥Ù„Ù‰ Ø§Ù„Ø¨ÙˆØ§Ø¨Ø©.
-                </p>
-                <div className="mt-6 space-y-4">
-                  <SelectField
-                    label="Ø§Ù„Ø­Ø³Ø§Ø¨"
-                    value={selectedUserId}
-                    onChange={onSelectUser}
-                    options={users
-                      .filter((user) => user.status === "Ù†Ø´Ø·")
-                      .map((user) => ({
-                        value: String(user.id),
-                        label: `${user.name} - ${getRoleByKey(user.roleKey)?.label || user.roleKey} - ${user.scope}`,
-                      }))}
-                  />
-                  <Field
-                    label="Ø±Ù…Ø² Ø§Ù„Ø¯Ø®ÙˆÙ„"
-                    placeholder="1234"
-                    type="password"
-                    value={pin}
-                    onChange={onPinChange}
-                  />
-                  <Button
-                    onClick={onLogin}
-                    disabled={isSubmitting}
-                    className="mt-2 w-full rounded-2xl bg-red-600 py-6 text-base hover:bg-red-700 disabled:opacity-70"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <LoaderCircle className="mr-2 animate-spin" size={18} />
-                        Ø¬Ø§Ø± Ø§Ù„ØªØ­Ù‚Ù‚
-                      </>
-                    ) : (
-                      <>
-                        Ø¯Ø®ÙˆÙ„ Ø¢Ù…Ù†
-                        <Lock className="mr-2" size={18} />
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <div className="mt-5 rounded-2xl bg-slate-100 px-4 py-3 text-xs leading-6 text-slate-600">
-                  Ø§Ù„Ù†Ø³Ø®Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ© ØªØ¬Ø±ÙŠØ¨ÙŠØ© Ù„Ù„ØªØ´ØºÙŠÙ„ Ø§Ù„Ù…Ø­Ù„ÙŠ ÙˆØªØ³ØªØ®Ø¯Ù… Ø±Ù…Ø² Ø§Ù„Ø¯Ø®ÙˆÙ„
-                  <b> 1234 </b>
-                  Ù…Ø¹ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù…Ø­ÙÙˆØ¸Ø© Ø¯Ø§Ø®Ù„ Ø§Ù„Ù…ØªØµÙØ­.
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-sm leading-7 text-slate-100 backdrop-blur">
+          <p>نسخة تشغيلية أولية لتجربة الواجهة والصلاحيات قبل الربط بأي قاعدة بيانات.</p>
+          <p className="mt-2">رمز الدخول التجريبي لجميع الحسابات: 1234</p>
         </div>
-      </div>
+      </section>
+
+      <section className="flex items-center justify-center p-6 lg:p-10">
+        <Card className="w-full max-w-xl rounded-[28px] border-slate-200 shadow-xl shadow-slate-200/70">
+          <CardContent className="space-y-6 p-8">
+            <div className="space-y-2 text-right">
+              <p className="text-sm font-semibold text-sky-600">بوابة مباشرة الحالات</p>
+              <h2 className="text-3xl font-black text-slate-900">تسجيل الدخول</h2>
+              <p className="text-sm leading-7 text-slate-500">
+                اختر حسابًا تجريبيًا للدخول حسب الدور التشغيلي. هذه النسخة تعمل محليًا
+                بدون ربط خارجي.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <label className="block text-sm font-bold text-slate-700">
+                المستخدم التجريبي
+                <select
+                  value={selectedUserId}
+                  onChange={(event) => onSelectUser(event.target.value)}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-300"
+                >
+                  {users
+                    .filter((user) => user.status === "نشط")
+                    .map((user) => (
+                      <option key={user.id} value={String(user.id)}>
+                        {user.name} — {user.role} — {user.city}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="block text-sm font-bold text-slate-700">
+                رمز الدخول التجريبي
+                <input
+                  type="password"
+                  value={pin}
+                  onChange={(event) => onPinChange(event.target.value)}
+                  placeholder="1234"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-300"
+                />
+              </label>
+            </div>
+
+            <Button className="w-full bg-red-600 hover:bg-red-500" onClick={onLogin}>
+              دخول
+            </Button>
+
+            <div className="rounded-2xl bg-amber-50 p-4 text-sm leading-7 text-amber-800">
+              إذا ظهرت لك بيانات قديمة غير مرغوبة، ادخل بحساب مدير النظام ثم استخدم خيار
+              “مسح البيانات التجريبية” من صفحة الأمان والصلاحيات.
+            </div>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
 
-function Sidebar({ active, setActive, currentUser, onNavigate }) {
-  const visibleItems = navItems.filter((item) => canAccessPage(currentUser, item.key));
+function Sidebar({ currentUser, activePage, onNavigate, onLogout, mobileOpen, onCloseMobile }) {
+  const items = allowedPages(currentUser.role);
 
   return (
-    <aside className="hidden w-72 shrink-0 border-l border-slate-100 bg-white p-5 lg:block">
-      <div className="flex items-center gap-3 rounded-3xl bg-slate-950 p-4 text-white">
-        <div className="rounded-2xl bg-red-600 p-3">
-          <HeartPulse size={24} />
-        </div>
-        <div>
-          <p className="font-bold">Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©</p>
-          <p className="text-xs text-white/60">Ø¬Ù…Ø¹ÙŠØ© Ø¥Ù†Ø¬Ø§Ø¯ Ù„Ù„Ø¨Ø­Ø« ÙˆØ§Ù„Ø¥Ù†Ù‚Ø§Ø°</p>
-        </div>
-      </div>
+    <>
+      <div
+        className={`fixed inset-0 z-40 bg-slate-950/35 transition lg:hidden ${
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={onCloseMobile}
+      />
 
-      <nav className="mt-8 space-y-2">
-        {visibleItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = active === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => {
-                setActive(item.key);
-                onNavigate?.();
-              }}
-              className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                isActive
-                  ? "bg-red-50 text-red-700"
-                  : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              <Icon size={19} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-    </aside>
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-80 border-l border-slate-200 bg-white p-5 transition lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div className="mb-6 flex items-start justify-between lg:hidden">
+          <div className="text-right">
+            <p className="text-sm font-semibold text-red-600">جمعية إنجاد</p>
+            <p className="text-xs text-slate-500">بوابة مباشرة الحالات</p>
+          </div>
+          <button
+            className="rounded-xl border border-slate-200 p-2 text-slate-500"
+            onClick={onCloseMobile}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="rounded-[28px] bg-slate-950 p-5 text-white">
+          <div className="mb-4 flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl">
+              🚑
+            </div>
+            <div className="text-right">
+              <h2 className="font-black">جمعية إنجاد</h2>
+              <p className="text-xs text-slate-300">بوابة مباشرة الحالات الإسعافية</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-4 text-right">
+            <p className="font-bold">{currentUser.name}</p>
+            <p className="mt-1 text-sm text-slate-300">{currentUser.role}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {currentUser.city} — {currentUser.team}
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            className="mt-4 w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+            onClick={onLogout}
+          >
+            <LogOut size={16} />
+            تسجيل خروج
+          </Button>
+        </div>
+
+        <nav className="mt-6 space-y-2">
+          {items.map((key) => {
+            const meta = PAGE_META[key];
+            const Icon = meta.icon;
+            const isActive = activePage === key;
+            return (
+              <button
+                key={key}
+                onClick={() => {
+                  onNavigate(key);
+                  onCloseMobile();
+                }}
+                className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-right transition ${
+                  isActive
+                    ? "bg-red-50 text-red-700"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                <span className="font-semibold">{meta.label}</span>
+                <Icon size={18} />
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
   );
 }
 
-function Header({
-  active,
-  setActive,
-  currentUser,
-  onOpenMobileNav,
-  onLogout,
-  unreadCount,
-  notificationOpen,
-  setNotificationOpen,
-  notifications,
-  isPageLoading,
-}) {
-  const title =
-    navItems.find((item) => item.key === active)?.label || "Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠØ©";
-
+function Header({ currentUser, activePage, onQuickNew, onOpenMenu }) {
+  const meta = PAGE_META[activePage];
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-100 bg-slate-50/90 px-4 py-4 backdrop-blur lg:px-8">
-      <div className="relative flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="rounded-2xl lg:hidden"
-            onClick={onOpenMobileNav}
-          >
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur lg:px-8">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 lg:hidden">
+          <button className="rounded-xl border border-slate-200 p-2" onClick={onOpenMenu}>
             <Menu size={18} />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-bold text-slate-900 lg:text-xl">
-                {title}
-              </h1>
-              {isPageLoading ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-                  <LoaderCircle size={14} className="animate-spin" />
-                  Ø¬Ø§Ø± Ø§Ù„ØªØ­Ø¯ÙŠØ«
-                </span>
-              ) : null}
-            </div>
-            <p className="text-xs text-slate-500">
-              Ù…Ø±Ø­Ø¨Ù‹Ø§ØŒ {currentUser?.name} â€” {getRoleByKey(currentUser?.roleKey)?.label}
-            </p>
-          </div>
+          </button>
         </div>
-        <div className="flex items-center gap-2">
-          {canAccessPage(currentUser, "new") ? (
-            <Button
-              onClick={() => setActive("new")}
-              className="hidden rounded-2xl bg-red-600 hover:bg-red-700 sm:inline-flex"
-            >
-              Ù…Ø¨Ø§Ø´Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø©
-              <Plus className="mr-2" size={17} />
-            </Button>
-          ) : null}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setNotificationOpen(!notificationOpen)}
-              className="relative rounded-2xl bg-white p-3 text-slate-500 shadow-sm transition hover:text-slate-700"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                  {unreadCount}
-                </span>
-              ) : null}
-            </button>
-            <NotificationPanel
-              open={notificationOpen}
-              notifications={notifications}
-              onClose={() => setNotificationOpen(false)}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-2xl bg-white text-slate-600"
-            onClick={onLogout}
-          >
-            ØªØ³Ø¬ÙŠÙ„ Ø®Ø±ÙˆØ¬
-            <UserRound className="mr-2" size={16} />
-          </Button>
+
+        <div className="flex-1 text-right">
+          <h1 className="text-2xl font-black text-slate-900">{meta.label}</h1>
+          <p className="text-sm text-slate-500">{meta.subtitle}</p>
         </div>
+
+        {canAccess(currentUser.role, "new") ? (
+          <Button className="bg-red-600 hover:bg-red-500" onClick={onQuickNew}>
+            <Plus size={16} />
+            مباشرة بلاغ جديد
+          </Button>
+        ) : null}
       </div>
     </header>
   );
 }
 
-function Dashboard({ setActive, incidents, currentUser }) {
-  const visibleIncidents = useMemo(
-    () => getVisibleIncidents(incidents, currentUser),
-    [currentUser, incidents],
+function SectionCard({ title, subtitle, children, action }) {
+  return (
+    <Card className="rounded-[26px] shadow-sm">
+      <CardContent className="p-6">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          {action || <span />}
+          <div className="text-right">
+            <h3 className="text-lg font-black text-slate-900">{title}</h3>
+            {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+          </div>
+        </div>
+        {children}
+      </CardContent>
+    </Card>
   );
-  const closedCount = visibleIncidents.filter((incident) => incident.status === "Ù…ØºÙ„Ù‚").length;
-  const criticalCount = visibleIncidents.filter((incident) => incident.severity === "Ø­Ø±Ø¬").length;
-  const totalPatients = visibleIncidents.reduce(
-    (sum, incident) => sum + Number(incident.patients || 0),
+}
+
+function DashboardPage({ incidents }) {
+  const totalPatients = incidents.reduce(
+    (sum, incident) => sum + Number(incident.patientCount || 0),
     0,
   );
-  const redCrescentCount = visibleIncidents.filter((incident) =>
-    String(incident.source).includes("Ø§Ù„Ù‡Ù„Ø§Ù„"),
+  const closed = incidents.filter((incident) => incident.status === "مغلق").length;
+  const redCrescent = incidents.filter((incident) =>
+    incident.source.includes("الهلال الأحمر"),
   ).length;
+  const critical = incidents.filter((incident) => incident.severity === "حرج").length;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ø§Ù„ÙŠÙˆÙ…"
-          value={String(visibleIncidents.length)}
-          icon={ClipboardList}
-          hint="Ø¨Ø­Ø³Ø¨ Ù†Ø·Ø§Ù‚ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ø­Ø§Ù„ÙŠ"
-        />
-        <StatCard
-          title="Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ÙŠÙ†"
-          value={String(totalPatients)}
-          icon={Activity}
-          hint={`Ø¨ÙŠÙ†Ù‡Ù… ${criticalCount} Ø­Ø§Ù„Ø§Øª Ø­Ø±Ø¬Ø©`}
-        />
-        <StatCard
-          title="Ø¨Ù„Ø§ØºØ§Øª Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø±"
-          value={String(redCrescentCount)}
-          icon={Clock}
-          hint="Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…Ø­Ø§Ù„Ø© Ø±Ø³Ù…ÙŠÙ‹Ø§"
-        />
-        <StatCard
-          title="Ø­Ø§Ù„Ø§Øª Ù…ØºÙ„Ù‚Ø©"
-          value={String(closedCount)}
-          icon={CheckCircle2}
-          hint={`${visibleIncidents.length - closedCount} Ù‚ÙŠØ¯ Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø©`}
-        />
+        <StatCard title="مباشرات اليوم" value={incidents.length} note="حسب صلاحية المستخدم" />
+        <StatCard title="عدد الحالات" value={totalPatients} note={`${critical} حالات حرجة`} />
+        <StatCard title="بلاغات الهلال الأحمر" value={redCrescent} note="محالة رسميًا" />
+        <StatCard title="مباشرات مغلقة" value={closed} note={`${incidents.length - closed} قيد المتابعة`} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="rounded-3xl border-0 shadow-sm xl:col-span-2">
-          <CardContent className="p-6">
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Ø¢Ø®Ø± Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Ù…ØªØ§Ø¨Ø¹Ø© Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…Ø³Ø¬Ù„Ø© Ù„Ù„Ø­Ø¬Ø§Ø¬ ÙˆØ§Ù„Ù…Ø¹ØªÙ…Ø±ÙŠÙ† Ù…Ù† Ø§Ù„ÙØ±Ù‚ Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠØ©
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setActive("incidents")}
-                className="rounded-2xl"
-              >
-                Ø¹Ø±Ø¶ Ø§Ù„ÙƒÙ„
-              </Button>
-            </div>
-            <div className="grid gap-4 lg:hidden">
-              {visibleIncidents.slice().reverse().slice(0, 3).map((incident) => (
-                <div
-                  key={incident.id}
-                  className="rounded-3xl border border-slate-100 bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-bold text-slate-900">{incident.id}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {incident.type} - {incident.city}
-                      </p>
-                    </div>
-                    <StatusBadge status={incident.status} />
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.patients} Ù…Ø³ØªÙÙŠØ¯
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.time}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.severity}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="hidden overflow-hidden rounded-2xl border border-slate-100 lg:block">
-              <table className="w-full text-right text-sm">
-                <thead className="bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="p-4">Ø±Ù‚Ù… Ø§Ù„Ø¨Ù„Ø§Øº</th>
-                    <th className="p-4">Ø§Ù„Ù†ÙˆØ¹</th>
-                    <th className="p-4">Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©</th>
-                    <th className="p-4">Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ÙŠÙ†</th>
-                    <th className="p-4">Ø§Ù„Ø­Ø§Ù„Ø©</th>
+      <SectionCard title="آخر المباشرات" subtitle="يعرض آخر الحالات المسجلة ضمن نطاق صلاحيتك">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-right text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500">
+                <th className="rounded-r-2xl px-4 py-3">رقم المباشرة</th>
+                <th className="px-4 py-3">المصدر</th>
+                <th className="px-4 py-3">المدينة</th>
+                <th className="px-4 py-3">الموقع</th>
+                <th className="rounded-l-2xl px-4 py-3">الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents
+                .slice()
+                .reverse()
+                .map((incident) => (
+                  <tr key={incident.id} className="border-b border-slate-100 last:border-b-0">
+                    <td className="px-4 py-4 font-bold text-slate-800">{incident.id}</td>
+                    <td className="px-4 py-4 text-slate-600">{incident.source}</td>
+                    <td className="px-4 py-4 text-slate-600">{incident.city}</td>
+                    <td className="px-4 py-4 text-slate-600">{incident.location}</td>
+                    <td className="px-4 py-4">
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(
+                          incident.status,
+                        )}`}
+                      >
+                        {incident.status}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {visibleIncidents.slice().reverse().map((incident) => (
-                    <tr key={incident.id} className="bg-white">
-                      <td className="p-4 font-medium text-slate-900">
-                        {incident.id}
-                      </td>
-                      <td className="p-4 text-slate-600">{incident.type}</td>
-                      <td className="p-4 text-slate-600">{incident.city}</td>
-                      <td className="p-4 text-slate-600">
-                        {incident.patients}
-                      </td>
-                      <td className="p-4">
-                        <StatusBadge status={incident.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-3xl border-0 bg-slate-950 text-white shadow-sm">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-bold">ØªÙ†Ø¨ÙŠÙ‡Ø§Øª ØªØ´ØºÙŠÙ„ÙŠØ©</h2>
-            <div className="mt-5 space-y-4">
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="font-medium">Ø­Ø§Ù„Ø© Ù‚ÙŠØ¯ Ø§Ù„Ø§Ø³ØªÙƒÙ…Ø§Ù„</p>
-                <p className="mt-1 text-sm text-white/60">
-                  Ø­Ø§Ù„Ø© Ø¶ÙŠÙ‚ ØªÙ†ÙØ³ Ù„Ù…Ø¹ØªÙ…Ø± ØªØ­ØªØ§Ø¬ Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„Ø¹Ù„Ø§Ù…Ø§Øª Ø§Ù„Ø­ÙŠÙˆÙŠØ©.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="font-medium">Ù…Ø±Ø§Ø¬Ø¹Ø© Ù…Ø´Ø±Ù Ø§Ù„Ù…Ù†Ø·Ù‚Ø©</p>
-                <p className="mt-1 text-sm text-white/60">
-                  4 Ø­Ø§Ù„Ø§Øª Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù†Ù‡Ø§Ø¦ÙŠ ÙÙŠ Ù…ÙƒØ© ÙˆØ§Ù„Ù…Ø¯ÙŠÙ†Ø©.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="font-medium">Ø¬Ø§Ù‡Ø²ÙŠØ© Ø§Ù„ÙØ±Ù‚ Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©</p>
-                <p className="mt-1 text-sm text-white/60">
-                  Ø§Ù„ÙˆØ§Ø¬Ù‡Ø© Ù…Ù‡ÙŠØ£Ø© Ù„Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ø³Ø±ÙŠØ¹Ø© ÙÙŠ Ø§Ù„Ø­Ø±Ù… ÙˆØ§Ù„Ù…Ø´Ø§Ø¹Ø± ÙˆØ§Ù„Ù…Ù†Ø§Ø·Ù‚ Ø§Ù„Ù…Ø±ÙƒØ²ÙŠØ©.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
     </div>
   );
 }
 
-function NewIncident({
-  currentUser,
-  incidents,
-  cities,
-  sites,
-  onSaveIncident,
-  onToast,
-  onNotify,
-}) {
-  const availableCities = cities.length > 0 ? cities : initialCities;
-  const initialCity = availableCities[0] || "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©";
-  const initialSite = getSitesForCity(sites, initialCity)[0] || "Ù…ÙˆÙ‚Ø¹ Ù…ÙˆØ³Ù…ÙŠ";
-  const [patientCount, setPatientCount] = useState(1);
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function StatCard({ title, value, note }) {
+  return (
+    <Card className="rounded-[26px] border-slate-200">
+      <CardContent className="p-6 text-right">
+        <p className="text-sm font-semibold text-slate-500">{title}</p>
+        <p className="mt-3 text-4xl font-black text-slate-900">{value}</p>
+        <p className="mt-2 text-xs text-slate-500">{note}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NewIncidentPage({ cities, sites, currentUser, onSave, onCancel }) {
+  const defaultCity =
+    currentUser.city && currentUser.city !== "الكل" && cities.includes(currentUser.city)
+      ? currentUser.city
+      : cities[0] || "";
+
   const [form, setForm] = useState({
-    source: "Ù…Ø¨Ø§Ø´Ø±Ø© Ù…ÙŠØ¯Ø§Ù†ÙŠØ©",
-    rcNumber: "",
-    reportedAt: "",
-    incidentType: "Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ",
-    city: initialCity,
-    seasonalLocation: initialSite,
-    locationDetail: "",
-    gps: "",
-    severity: "Ù…ØªÙˆØ³Ø·",
-    declaredPatients: "1",
-    category: "Ø­Ø§Ø¬",
-    intervention: "ØªÙ‚ÙŠÙŠÙ… Ø£ÙˆÙ„ÙŠ",
-    handover: "Ø¹ÙˆÙ„Ø¬ Ø¨Ø§Ù„Ù…ÙˆÙ‚Ø¹",
+    source: "مباشرة ذاتية من الفريق",
+    rc: "",
+    city: defaultCity,
+    seasonLocation: "",
+    location: "",
+    time: "",
+    type: "إجهاد حراري",
+    severity: "بسيط",
+    patientCount: 1,
+    category: "حاج",
+    intervention: "تقييم أولي",
+    handover: "علاج بالموقع",
     notes: "",
   });
 
-  const patients = useMemo(
-    () => Array.from({ length: patientCount }, (_, i) => i + 1),
-    [patientCount],
+  const citySites = useMemo(
+    () => sites.filter((site) => site.city === form.city),
+    [sites, form.city],
   );
-
-  const updateField = (key) => (event) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
 
   useEffect(() => {
     setForm((current) => ({
       ...current,
-      declaredPatients: String(patientCount),
+      seasonLocation: citySites[0]?.name || "",
     }));
-  }, [patientCount]);
+  }, [form.city, citySites]);
 
-  useEffect(() => {
-    const citySites = getSitesForCity(sites, form.city);
-    if (citySites.length === 0) {
-      return;
-    }
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
-    if (!citySites.includes(form.seasonalLocation)) {
-      setForm((current) => ({
-        ...current,
-        seasonalLocation: citySites[0],
-      }));
-    }
-  }, [form.city, form.seasonalLocation, sites]);
+  return (
+    <SectionCard
+      title="تسجيل مباشرة حالة إسعافية"
+      subtitle="للحجاج والمعتمرين في مكة المكرمة والمدينة المنورة بدون إدخال بيانات شخصية غير لازمة"
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Field label="مصدر البلاغ">
+          <select
+            value={form.source}
+            onChange={(event) => updateField("source", event.target.value)}
+            className={inputClass}
+          >
+            <option>مباشرة ذاتية من الفريق</option>
+            <option>بلاغ محال من الهلال الأحمر</option>
+            <option>نقطة فرز/مركز تطوعي</option>
+            <option>جهة تنظيمية</option>
+          </select>
+        </Field>
 
-  const persistIncident = async (status) => {
-    const draftIncident = {
-      source: form.source,
-      rcNumber: form.rcNumber.trim(),
-      city: form.city,
-      location: `${form.seasonalLocation}${
-        form.locationDetail.trim() ? ` - ${form.locationDetail.trim()}` : ""
-      }`,
-      type: form.incidentType,
-      severity: form.severity,
-      patients: Number(form.declaredPatients || 1),
-      category: form.category,
-      intervention: form.intervention,
-      handover: form.handover,
-      status,
-      createdById: currentUser.id,
-      createdBy: currentUser.name,
-      team: currentUser.team,
-      time:
-        form.reportedAt ||
-        new Date().toLocaleTimeString("ar-SA", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      notes: form.notes.trim(),
-      gps: form.gps.trim(),
-    };
+        {form.source.includes("الهلال") ? (
+          <Field label="رقم بلاغ الهلال الأحمر">
+            <input
+              value={form.rc}
+              onChange={(event) => updateField("rc", event.target.value)}
+              placeholder="997-12345"
+              className={inputClass}
+            />
+          </Field>
+        ) : null}
 
-    const savedIncident = await onSaveIncident(draftIncident);
-    return savedIncident;
-  };
+        <Field label="المدينة">
+          <select
+            value={form.city}
+            onChange={(event) => updateField("city", event.target.value)}
+            className={inputClass}
+          >
+            {cities.map((city) => (
+              <option key={city}>{city}</option>
+            ))}
+          </select>
+        </Field>
 
-  const handleSaveDraft = async () => {
-    setIsSavingDraft(true);
-    await wait(700);
-    const incident = await persistIncident("Ù…Ø³ÙˆØ¯Ø©");
-    setIsSavingDraft(false);
-    onToast("success", "ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ø³ÙˆØ¯Ø©", `ØªÙ… Ø­ÙØ¸ ${incident.id} ÙƒÙ…Ø³ÙˆØ¯Ø© Ù‚Ø§Ø¨Ù„Ø© Ù„Ù„Ø§Ø³ØªÙƒÙ…Ø§Ù„.`);
-  };
+        <Field label="الموقع الموسمي">
+          <select
+            value={form.seasonLocation}
+            onChange={(event) => updateField("seasonLocation", event.target.value)}
+            className={inputClass}
+          >
+            {citySites.map((site) => (
+              <option key={`${site.city}-${site.name}`}>{site.name}</option>
+            ))}
+          </select>
+        </Field>
 
-  const handleSubmit = async (status = "Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©") => {
-    setIsSubmitting(true);
-    await wait(900);
-    const incident = await persistIncident(status);
-    setIsSubmitting(false);
-    onToast(
-      "success",
-      status === "Ù…ØºÙ„Ù‚" ? "ØªÙ… Ø­ÙØ¸ ÙˆØ¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø©" : "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ù„Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©",
-      `ØªÙ… Ø­ÙØ¸ ${incident.id} Ø¶Ù…Ù† Ø³Ø¬Ù„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©.`,
+        <Field label="وصف الموقع أو الإحداثيات">
+          <input
+            value={form.location}
+            onChange={(event) => updateField("location", event.target.value)}
+            placeholder="مثال: الساحة الشرقية / باب الملك عبدالعزيز"
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="وقت المباشرة">
+          <input
+            type="time"
+            value={form.time}
+            onChange={(event) => updateField("time", event.target.value)}
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="نوع الحالة">
+          <select
+            value={form.type}
+            onChange={(event) => updateField("type", event.target.value)}
+            className={inputClass}
+          >
+            {[
+              "إجهاد حراري",
+              "ضربة حرارية",
+              "إغماء",
+              "ضيق تنفس",
+              "ألم صدر",
+              "هبوط سكر",
+              "ارتفاع ضغط",
+              "إصابة قدم/إجهاد مشي",
+              "سقوط",
+              "نزيف",
+              "أخرى",
+            ].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="درجة الحالة">
+          <select
+            value={form.severity}
+            onChange={(event) => updateField("severity", event.target.value)}
+            className={inputClass}
+          >
+            {["بسيط", "متوسط", "حرج", "وفاة"].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="عدد الحجاج/المعتمرين">
+          <input
+            type="number"
+            min="1"
+            value={form.patientCount}
+            onChange={(event) => updateField("patientCount", Number(event.target.value || 1))}
+            className={inputClass}
+          />
+        </Field>
+
+        <Field label="الفئة">
+          <select
+            value={form.category}
+            onChange={(event) => updateField("category", event.target.value)}
+            className={inputClass}
+          >
+            {["حاج", "معتمر", "زائر", "عامل/منظم", "غير معروف"].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="الإجراء الإسعافي">
+          <select
+            value={form.intervention}
+            onChange={(event) => updateField("intervention", event.target.value)}
+            className={inputClass}
+          >
+            {[
+              "تقييم أولي",
+              "تبريد/كمادات",
+              "سوائل فموية",
+              "أكسجين",
+              "إيقاف نزيف",
+              "تضميد",
+              "CPR",
+              "قياس سكر",
+              "أخرى",
+            ].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="النقل أو التسليم">
+          <select
+            value={form.handover}
+            onChange={(event) => updateField("handover", event.target.value)}
+            className={inputClass}
+          >
+            {[
+              "علاج بالموقع",
+              "تسليم للهلال الأحمر",
+              "نقل بواسطة الهلال الأحمر",
+              "نقل لمركز صحي/طبي",
+              "رفض النقل",
+              "تسليم لجهة تنظيمية",
+            ].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <Field label="ملاحظات مختصرة" className="mt-4">
+        <textarea
+          value={form.notes}
+          onChange={(event) => updateField("notes", event.target.value)}
+          placeholder="اكتب وصفًا مختصرًا بدون بيانات شخصية غير لازمة"
+          className={`${inputClass} min-h-28 resize-y`}
+        />
+      </Field>
+
+      <div className="mt-6 flex flex-wrap justify-start gap-3">
+        <Button variant="outline" onClick={onCancel}>
+          إلغاء
+        </Button>
+        <Button variant="outline" onClick={() => onSave(form, "مسودة")}>
+          حفظ كمسودة
+        </Button>
+        <Button className="bg-red-600 hover:bg-red-500" onClick={() => onSave(form, "قيد المراجعة")}>
+          إرسال للمراجعة
+        </Button>
+        {["قائد فريق", "مشرف عمليات", "مدير النظام"].includes(currentUser.role) ? (
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-500"
+            onClick={() => onSave(form, "مغلق")}
+          >
+            حفظ وإغلاق
+          </Button>
+        ) : null}
+      </div>
+    </SectionCard>
+  );
+}
+
+function IncidentsPage({ incidents, currentUser, onApprove, onDelete }) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const normalized = query.trim();
+    if (!normalized) return incidents;
+    return incidents.filter((incident) =>
+      Object.values(incident).join(" ").toLowerCase().includes(normalized.toLowerCase()),
     );
-    onNotify({
-      title: status === "Ù…ØºÙ„Ù‚" ? "Ø¥ØºÙ„Ø§Ù‚ Ù…Ø¨Ø§Ø´Ø±Ø© Ù…ÙŠØ¯Ø§Ù†ÙŠØ©" : "Ù…Ø¨Ø§Ø´Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø© Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ø§Ø¹ØªÙ…Ø§Ø¯",
-      body: `ØªÙ… Ø±ÙØ¹ Ø­Ø§Ù„Ø© ${form.incidentType} ÙÙŠ ${form.city} Ø¨Ø¹Ø¯Ø¯ ${patientCount} Ù…Ø³ØªÙÙŠØ¯.`,
-      time: "Ø§Ù„Ø¢Ù†",
-      tone: "default",
-    });
-  };
+  }, [incidents, query]);
+
+  return (
+    <SectionCard
+      title="سجل المباشرات"
+      subtitle="المعروض هنا يعتمد على دورك وصلاحيتك"
+      action={
+        <div className="relative min-w-[280px]">
+          <Search className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="بحث برقم المباشرة أو المدينة أو نوع الحالة"
+            className={`${inputClass} pr-9`}
+          />
+        </div>
+      }
+    >
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-right text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-slate-500">
+              {[
+                "رقم المباشرة",
+                "المصدر",
+                "المدينة",
+                "نوع الحالة",
+                "الموقع",
+                "الفريق",
+                "الحالة",
+                "الإجراء",
+              ].map((header, index) => (
+                <th
+                  key={header}
+                  className={`px-4 py-3 ${index === 0 ? "rounded-r-2xl" : ""} ${
+                    index === 7 ? "rounded-l-2xl" : ""
+                  }`}
+                >
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered
+              .slice()
+              .reverse()
+              .map((incident) => (
+                <tr key={incident.id} className="border-b border-slate-100 align-top last:border-b-0">
+                  <td className="px-4 py-4 font-bold text-slate-800">
+                    {incident.id}
+                    <p className="mt-1 text-xs font-medium text-slate-500">{incident.time}</p>
+                  </td>
+                  <td className="px-4 py-4 text-slate-600">
+                    {incident.source}
+                    <p className="mt-1 text-xs text-slate-400">
+                      {incident.rc || "لا يوجد رقم هلال"}
+                    </p>
+                  </td>
+                  <td className="px-4 py-4 text-slate-600">{incident.city}</td>
+                  <td className="px-4 py-4 text-slate-600">
+                    {incident.type}
+                    <div className="mt-2 flex justify-end gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${severityBadgeClass(
+                          incident.severity,
+                        )}`}
+                      >
+                        {incident.severity}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                        {incident.patientCount} حالة
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-slate-600">{incident.location}</td>
+                  <td className="px-4 py-4 text-slate-600">
+                    {incident.team}
+                    <p className="mt-1 text-xs text-slate-400">{incident.createdBy}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass(
+                        incident.status,
+                      )}`}
+                    >
+                      {incident.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {["قائد فريق", "مشرف عمليات", "مدير النظام"].includes(
+                        currentUser.role,
+                      ) && incident.status !== "مغلق" ? (
+                        <Button
+                          className="bg-emerald-600 px-3 py-2 text-xs hover:bg-emerald-500"
+                          onClick={() => onApprove(incident.id)}
+                        >
+                          اعتماد
+                        </Button>
+                      ) : null}
+
+                      {["مشرف عمليات", "مدير النظام"].includes(currentUser.role) ? (
+                        <Button
+                          className="bg-red-600 px-3 py-2 text-xs hover:bg-red-500"
+                          onClick={() => onDelete(incident.id)}
+                        >
+                          حذف
+                        </Button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  );
+}
+
+function ReportsPage({ incidents, currentUser }) {
+  const heat = incidents.filter((incident) => incident.type.includes("حراري")).length;
+  const byCity = DEFAULT_CITIES.map((city) => ({
+    city,
+    count: incidents.filter((incident) => incident.city === city).length,
+  }));
+  const redCrescent = incidents.filter((incident) => incident.source === "بلاغ محال من الهلال الأحمر").length;
+  const selfResponses = incidents.filter((incident) => incident.source === "مباشرة ذاتية من الفريق").length;
+  const totalPatients = incidents.reduce((sum, incident) => sum + Number(incident.patientCount || 0), 0);
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-3xl border-0 shadow-sm">
-        <CardContent className="p-6">
-          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                ØªØ³Ø¬ÙŠÙ„ Ù…Ø¨Ø§Ø´Ø±Ø© Ø­Ø§Ù„Ø© Ù…ÙˆØ³Ù…ÙŠØ©
-              </h2>
-              <p className="text-sm text-slate-500">
-                Ø£ÙŽØ¯Ø®ÙÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø£Ø³Ø§Ø³ÙŠØ© Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ø­Ø§Ù„Ø§Øª Ø§Ù„Ø­Ø¬Ø§Ø¬ ÙˆØ§Ù„Ù…Ø¹ØªÙ…Ø±ÙŠÙ† Ø³ÙˆØ§Ø¡ ÙˆØ±Ø¯Øª Ù…Ù† Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø± Ø£Ùˆ ØªÙ…Øª Ù…Ø¨Ø§Ø´Ø±ØªÙ‡Ø§ Ù…ÙŠØ¯Ø§Ù†ÙŠÙ‹Ø§.
-              </p>
-            </div>
-            <StatusBadge status="Ù‚ÙŠØ¯ Ø§Ù„Ø§Ø³ØªÙƒÙ…Ø§Ù„" />
-          </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard title="إجهاد/ضربات حرارية" value={heat} note="مؤشر مهم للموسم" />
+        <StatCard title="بلاغات الهلال الأحمر" value={redCrescent} note="محالة رسميًا" />
+        <StatCard title="مباشرات ذاتية" value={selfResponses} note="من الفرق الميدانية" />
+        <StatCard title="إجمالي الحالات" value={totalPatients} note="بدون بيانات تعريفية" />
+      </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Field
-              label="Ø±Ù‚Ù… Ø¨Ù„Ø§Øº Ø§Ù„Ù‡Ù„Ø§Ù„ Ø¥Ù† ÙˆØ¬Ø¯"
-              placeholder="Ù…Ø«Ø§Ù„: 997-12345"
-              value={form.rcNumber}
-              onChange={updateField("rcNumber")}
-            />
-            <SelectField
-              label="Ù…ØµØ¯Ø± Ø§Ù„Ø¨Ù„Ø§Øº"
-              value={form.source}
-              onChange={updateField("source")}
-              options={[
-                "Ù…Ø¨Ø§Ø´Ø±Ø© Ù…ÙŠØ¯Ø§Ù†ÙŠØ©",
-                "Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø± Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠ",
-                "Ù†Ù‚Ø·Ø© ÙØ±Ø² Ø£Ùˆ Ù…Ø±ÙƒØ² ØªØ·ÙˆØ¹ÙŠ",
-                "Ø¬Ù‡Ø© ØªÙ†Ø¸ÙŠÙ…ÙŠØ©",
-              ]}
-            />
-            <Field
-              label="ÙˆÙ‚Øª Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø©"
-              type="time"
-              value={form.reportedAt}
-              onChange={updateField("reportedAt")}
-            />
-            <SelectField
-              label="Ù†ÙˆØ¹ Ø§Ù„Ø­Ø§Ù„Ø©"
-              value={form.incidentType}
-              onChange={updateField("incidentType")}
-              options={[
-                "Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ",
-                "Ø¶Ø±Ø¨Ø© Ø­Ø±Ø§Ø±ÙŠØ©",
-                "Ø¥ØºÙ…Ø§Ø¡",
-                "Ø¶ÙŠÙ‚ ØªÙ†ÙØ³",
-                "Ø£Ù„Ù… ØµØ¯Ø±",
-                "Ù‡Ø¨ÙˆØ· Ø³ÙƒØ±",
-                "Ø§Ø±ØªÙØ§Ø¹ Ø¶ØºØ·",
-                "Ø¥Ø¬Ù‡Ø§Ø¯ Ø¹Ø§Ù…",
-                "Ø¥ØµØ§Ø¨Ø© Ù‚Ø¯Ù… Ø£Ùˆ Ø¥Ø¬Ù‡Ø§Ø¯ Ù…Ø´ÙŠ",
-                "Ø³Ù‚ÙˆØ·",
-                "Ù†Ø²ÙŠÙ",
-                "Ø£Ø®Ø±Ù‰",
-              ]}
-            />
-            <SelectField
-              label="Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©"
-              value={form.city}
-              onChange={updateField("city")}
-              options={availableCities}
-            />
-            <SelectField
-              label="Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ù…ÙˆØ³Ù…ÙŠ"
-              value={form.seasonalLocation}
-              onChange={updateField("seasonalLocation")}
-              options={
-                getSitesForCity(sites, form.city).length > 0
-                  ? getSitesForCity(sites, form.city)
-                  : [form.seasonalLocation]
-              }
-            />
-            <Field
-              label="ÙˆØµÙ Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø£Ùˆ Ø§Ù„Ø¥Ø­Ø¯Ø§Ø«ÙŠØ§Øª"
-              placeholder="Ù…Ø«Ø§Ù„: Ø§Ù„Ø³Ø§Ø­Ø© Ø§Ù„Ø´Ø±Ù‚ÙŠØ© / Ø¨Ø§Ø¨ Ø§Ù„Ù…Ù„Ùƒ Ø¹Ø¨Ø¯Ø§Ù„Ø¹Ø²ÙŠØ²"
-              value={form.locationDetail}
-              onChange={updateField("locationDetail")}
-            />
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <SectionCard title="توزيع حسب المدينة" subtitle="ملخص سريع للحالات حسب المدينة">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-right text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500">
+                  <th className="rounded-r-2xl px-4 py-3">المدينة</th>
+                  <th className="rounded-l-2xl px-4 py-3">العدد</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byCity.map((row) => (
+                  <tr key={row.city} className="border-b border-slate-100 last:border-b-0">
+                    <td className="px-4 py-4 text-slate-700">{row.city}</td>
+                    <td className="px-4 py-4 font-bold text-slate-900">{row.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </SectionCard>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <SelectField
-              label="Ø¯Ø±Ø¬Ø© Ø§Ù„Ø­Ø§Ù„Ø©"
-              value={form.severity}
-              onChange={updateField("severity")}
-              options={["Ø¨Ø³ÙŠØ·", "Ù…ØªÙˆØ³Ø·", "Ø­Ø±Ø¬", "ÙˆÙØ§Ø©"]}
-            />
-            <Field
-              label="Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ÙŠÙ†"
-              type="number"
-              min="1"
-              placeholder="1"
-              value={form.declaredPatients}
-              onChange={(event) => {
-                const next = Math.max(1, Number(event.target.value || 1));
-                setPatientCount(next);
-              }}
-            />
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                Ø¥Ø¶Ø§ÙØ© Ù†Ù…Ø§Ø°Ø¬ Ù…Ø³ØªÙÙŠØ¯ÙŠÙ†
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() =>
-                    setPatientCount((current) => Math.max(1, current - 1))
-                  }
-                >
-                  -
-                </Button>
-                <div className="flex flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm">
-                {patientCount}
-              </div>
-              <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                onClick={() => setPatientCount((current) => current + 1)}
-              >
-                +
+        <SectionCard
+          title="تصدير"
+          subtitle="التصدير هنا تجريبي بصيغة CSV"
+          action={
+            currentUser.role === "مسعف ميداني" ? null : (
+              <Button onClick={() => exportIncidentsCsv(incidents)}>
+                <FileDown size={16} />
+                تصدير CSV
               </Button>
-            </div>
-          </label>
-          <SelectField
-            label="Ø§Ù„ÙØ¦Ø©"
-            value={form.category}
-            onChange={updateField("category")}
-            options={["Ø­Ø§Ø¬", "Ù…Ø¹ØªÙ…Ø±", "Ø²Ø§Ø¦Ø±", "Ø¹Ø§Ù…Ù„ Ø£Ùˆ Ù…Ù†Ø¸Ù…", "ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ"]}
-          />
-          <SelectField
-            label="Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡ Ø§Ù„Ø¥Ø³Ø¹Ø§ÙÙŠ"
-            value={form.intervention}
-            onChange={updateField("intervention")}
-            options={[
-              "ØªÙ‚ÙŠÙŠÙ… Ø£ÙˆÙ„ÙŠ",
-              "ØªØ¨Ø±ÙŠØ¯ ÙˆØ¥Ø±ÙˆØ§Ø¡",
-              "Ø³ÙˆØ§Ø¦Ù„ ÙÙ…ÙˆÙŠØ©",
-              "Ø£ÙƒØ³Ø¬ÙŠÙ†",
-              "Ø¥ÙŠÙ‚Ø§Ù Ù†Ø²ÙŠÙ",
-              "ØªØ¶Ù…ÙŠØ¯",
-              "CPR",
-              "Ù‚ÙŠØ§Ø³ Ø³ÙƒØ±",
-              "Ø£Ø®Ø±Ù‰",
-            ]}
-          />
-          <SelectField
-            label="Ø§Ù„Ù†Ù‚Ù„ Ø£Ùˆ Ø§Ù„ØªØ³Ù„ÙŠÙ…"
-            value={form.handover}
-            onChange={updateField("handover")}
-            options={[
-              "Ø¹ÙˆÙ„Ø¬ Ø¨Ø§Ù„Ù…ÙˆÙ‚Ø¹",
-              "ØªØ³Ù„ÙŠÙ… Ù„Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø± Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠ",
-              "Ù†Ù‚Ù„ Ø¨ÙˆØ§Ø³Ø·Ø© Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø± Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠ",
-              "Ù†Ù‚Ù„ Ù„Ù…Ø±ÙƒØ² ØµØ­ÙŠ Ø£Ùˆ Ø·Ø¨ÙŠ",
-              "Ø±ÙØ¶ Ø§Ù„Ù†Ù‚Ù„",
-              "ØªØ³Ù„ÙŠÙ… Ù„Ø¬Ù‡Ø© ØªÙ†Ø¸ÙŠÙ…ÙŠØ©",
-            ]}
-          />
+            )
+          }
+        >
+          <div className="space-y-3 text-sm leading-7 text-slate-600">
+            <p>يمكن للمشرفين ومدير النظام ومسؤول الإحصائيات تصدير السجل الحالي حسب الصلاحية.</p>
+            <p>الملف الناتج مناسب للفرز والتحليل الأولي ومشاركته داخليًا.</p>
           </div>
-          <div className="mt-4">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">
-                Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ù…Ø®ØªØµØ±Ø©
-              </span>
-              <textarea
-                value={form.notes}
-                onChange={updateField("notes")}
-                placeholder="Ø§ÙƒØªØ¨ ÙˆØµÙÙ‹Ø§ Ù…Ø®ØªØµØ±Ù‹Ø§ Ø¨Ø¯ÙˆÙ† Ø¨ÙŠØ§Ù†Ø§Øª Ø´Ø®ØµÙŠØ© ØºÙŠØ± Ù„Ø§Ø²Ù…Ø©"
-                className={`${baseInputClassName} min-h-24 resize-y`}
-              />
-            </label>
-          </div>
-        </CardContent>
-      </Card>
-
-      {patients.map((patient) => (
-        <Card key={patient} className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-red-50 font-bold text-red-700">
-                {patient}
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900">
-                  Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ Ø±Ù‚Ù… {patient}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Ù„Ø§ ÙŠØªÙ… Ø¥Ø¯Ø®Ø§Ù„ Ø§Ù„Ø§Ø³Ù… Ø£Ùˆ Ø±Ù‚Ù… Ø§Ù„Ø¬ÙˆØ§Ø² Ø£Ùˆ Ø§Ù„Ù‡ÙˆÙŠØ© Ø¥Ù„Ø§ Ø¹Ù†Ø¯ Ø§Ù„Ø­Ø§Ø¬Ø© Ø§Ù„Ù†Ø¸Ø§Ù…ÙŠØ©.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <SelectField
-                label="ØµÙØ© Ø§Ù„Ù…Ø³ØªÙÙŠØ¯"
-                options={["Ø­Ø§Ø¬", "Ù…Ø¹ØªÙ…Ø±", "Ø²Ø§Ø¦Ø±", "Ø¹Ø§Ù…Ù„"]}
-              />
-              <SelectField label="Ø§Ù„Ø¬Ù†Ø³" options={["ØºÙŠØ± Ù…Ø­Ø¯Ø¯", "Ø°ÙƒØ±", "Ø£Ù†Ø«Ù‰"]} />
-              <Field label="Ø§Ù„Ø¬Ù†Ø³ÙŠØ©" placeholder="Ù…Ø«Ø§Ù„: Ø¥Ù†Ø¯ÙˆÙ†ÙŠØ³ÙŠ" />
-              <Field label="Ø§Ù„Ø¹Ù…Ø± Ø§Ù„ØªÙ‚Ø±ÙŠØ¨ÙŠ" placeholder="Ù…Ø«Ø§Ù„: 35" />
-              <Field label="Ø§Ù„Ù„ØºØ©" placeholder="Ù…Ø«Ø§Ù„: Ø¹Ø±Ø¨ÙŠ / Ø¥Ù†Ø¬Ù„ÙŠØ²ÙŠ / Ø£Ø±Ø¯Ùˆ" />
-              <SelectField
-                label="Ù…Ø³ØªÙˆÙ‰ Ø§Ù„ÙˆØ¹ÙŠ"
-                options={[
-                  "ÙˆØ§Ø¹ÙŠ",
-                  "ÙŠØ³ØªØ¬ÙŠØ¨ Ù„Ù„ØµÙˆØª",
-                  "ÙŠØ³ØªØ¬ÙŠØ¨ Ù„Ù„Ø£Ù„Ù…",
-                  "ÙØ§Ù‚Ø¯ Ø§Ù„ÙˆØ¹ÙŠ",
-                ]}
-              />
-              <SelectField
-                label="ØªØµÙ†ÙŠÙ Ø§Ù„Ø­Ø§Ù„Ø©"
-                options={["Ø¨Ø³ÙŠØ·", "Ù…ØªÙˆØ³Ø·", "Ø­Ø±Ø¬", "ÙˆÙØ§Ø©"]}
-              />
-              <Field label="Ø§Ù„Ù†Ø¨Ø¶" placeholder="Ù†Ø¨Ø¶Ø©/Ø¯Ù‚ÙŠÙ‚Ø©" />
-              <Field label="Ø§Ù„Ø¶ØºØ·" placeholder="120/80" />
-              <Field label="Ù†Ø³Ø¨Ø© Ø§Ù„Ø£ÙƒØ³Ø¬ÙŠÙ†" placeholder="SpO2 %" />
-              <Field label="Ø§Ù„Ø³ÙƒØ±" placeholder="mg/dL" />
-            </div>
-
-          </CardContent>
-        </Card>
-      ))}
-
-      <div className="sticky bottom-20 z-10 rounded-3xl border border-slate-100 bg-white/90 p-4 shadow-lg backdrop-blur lg:static lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-        <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-          <Button
-            variant="outline"
-            className="rounded-2xl px-6"
-            onClick={handleSaveDraft}
-            disabled={isSavingDraft || isSubmitting}
-          >
-            {isSavingDraft ? (
-              <>
-                <LoaderCircle className="mr-2 animate-spin" size={16} />
-                Ø¬Ø§Ø± Ø§Ù„Ø­ÙØ¸
-              </>
-            ) : (
-              "Ø­ÙØ¸ ÙƒÙ…Ø³ÙˆØ¯Ø©"
-            )}
-          </Button>
-          <Button
-            className="rounded-2xl bg-red-600 px-6 hover:bg-red-700"
-            onClick={handleSubmit}
-            disabled={isSubmitting || isSavingDraft}
-          >
-            {isSubmitting ? (
-              <>
-                <LoaderCircle className="mr-2 animate-spin" size={16} />
-                Ø¬Ø§Ø± Ø§Ù„Ø¥Ø±Ø³Ø§Ù„
-              </>
-            ) : (
-              "Ø¥Ø±Ø³Ø§Ù„ Ù„Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©"
-            )}
-          </Button>
-          {hasPermission(currentUser, "incidents:approve") ? (
-            <Button
-              className="rounded-2xl bg-emerald-600 px-6 hover:bg-emerald-700"
-              onClick={() => handleSubmit("Ù…ØºÙ„Ù‚")}
-              disabled={isSubmitting || isSavingDraft}
-            >
-              Ø­ÙØ¸ ÙˆØ¥ØºÙ„Ø§Ù‚
-            </Button>
-          ) : null}
-        </div>
+        </SectionCard>
       </div>
     </div>
   );
 }
 
-function Incidents({ incidents, currentUser, onApproveIncident, onDeleteIncident }) {
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Ø§Ù„ÙƒÙ„");
-  const deferredQuery = useDeferredValue(query);
-
-  const filteredIncidents = useMemo(() => {
-    const visibleIncidents = getVisibleIncidents(incidents, currentUser);
-    const normalizedQuery = deferredQuery.trim();
-
-    return visibleIncidents.filter((incident) => {
-      const matchesQuery =
-        normalizedQuery === "" ||
-        incident.id.includes(normalizedQuery) ||
-        incident.type.includes(normalizedQuery) ||
-        incident.city.includes(normalizedQuery) ||
-        String(incident.location || "").includes(normalizedQuery);
-      const matchesStatus =
-        statusFilter === "Ø§Ù„ÙƒÙ„" || incident.status === statusFilter;
-
-      return matchesQuery && matchesStatus;
-    });
-  }, [deferredQuery, statusFilter]);
-
-  return (
-    <Card className="rounded-3xl border-0 shadow-sm">
-      <CardContent className="p-6">
-        <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Ø³Ø¬Ù„ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª</h2>
-            <p className="text-sm text-slate-500">
-              Ø¨Ø­Ø« ÙˆÙ…Ø±Ø§Ø¬Ø¹Ø© ÙˆØ§Ø¹ØªÙ…Ø§Ø¯ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ø§Ù„Ù…Ø³Ø¬Ù„Ø© Ù„Ù„Ø­Ø¬Ø§Ø¬ ÙˆØ§Ù„Ù…Ø¹ØªÙ…Ø±ÙŠÙ†.
-            </p>
-          </div>
-          <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_220px] xl:max-w-2xl">
-            <div className="relative">
-              <Search className="absolute right-4 top-3.5 text-slate-400" size={18} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-white py-3 pr-11 pl-4 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
-                placeholder="Ø¨Ø­Ø« Ø¨Ø±Ù‚Ù… Ø§Ù„Ø­Ø§Ù„Ø© Ø£Ùˆ Ø§Ù„Ù†ÙˆØ¹ Ø£Ùˆ Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©"
-              />
-            </div>
-            <div className="relative">
-              <Filter className="absolute right-4 top-3.5 text-slate-400" size={18} />
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="w-full appearance-none rounded-2xl border border-slate-200 bg-white py-3 pr-11 pl-4 text-sm outline-none focus:border-red-400 focus:ring-4 focus:ring-red-50"
-              >
-                <option>Ø§Ù„ÙƒÙ„</option>
-                <option>Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©</option>
-                <option>Ù‚ÙŠØ¯ Ø§Ù„Ø§Ø³ØªÙƒÙ…Ø§Ù„</option>
-                <option>Ù…ØºÙ„Ù‚</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="mb-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-          <span>{filteredIncidents.length} Ù†ØªÙŠØ¬Ø© Ù…Ø·Ø§Ø¨Ù‚Ø©</span>
-          <span>Ø¢Ø®Ø± ØªØ­Ø¯ÙŠØ« Ù‚Ø¨Ù„ Ù„Ø­Ø¸Ø§Øª</span>
-        </div>
-        <div className="grid gap-4">
-          {filteredIncidents.map((incident) => (
-            <div
-              key={incident.id}
-              className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-100 bg-white p-5 md:flex-row md:items-center"
-            >
-              <div className="flex items-start gap-4">
-                <div className="rounded-2xl bg-red-50 p-3 text-red-600">
-                  <FileText size={22} />
-                </div>
-                <div>
-                  <p className="font-bold text-slate-900">{incident.id}</p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {incident.type} - {incident.city} - {incident.time}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      Ø§Ù„Ù…ØµØ¯Ø±: {incident.source}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.patients} Ù…Ø³ØªÙÙŠØ¯
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.severity}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1">
-                      {incident.location}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge status={incident.status} />
-                {hasPermission(currentUser, "incidents:approve") &&
-                incident.status !== "Ù…ØºÙ„Ù‚" ? (
-                  <Button
-                    className="rounded-2xl bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => onApproveIncident(incident.id)}
-                  >
-                    Ø§Ø¹ØªÙ…Ø§Ø¯
-                  </Button>
-                ) : null}
-                {currentUser?.roleKey === "operations_supervisor" ? (
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl text-red-700"
-                    onClick={() => onDeleteIncident(incident.id)}
-                  >
-                    Ø­Ø°Ù
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ))}
-          {filteredIncidents.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-              <p className="font-medium text-slate-700">Ù„Ø§ ØªÙˆØ¬Ø¯ Ù†ØªØ§Ø¦Ø¬ Ù…Ø·Ø§Ø¨Ù‚Ø©</p>
-              <p className="mt-2 text-sm text-slate-500">
-                Ø¬Ø±Ù‘Ø¨ ØªØºÙŠÙŠØ± Ù†Øµ Ø§Ù„Ø¨Ø­Ø« Ø£Ùˆ Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† Ø­Ø§Ù„Ø© Ø§Ù„ÙÙ„ØªØ±Ø©.
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function Reports({ incidents, currentUser, onToast }) {
-  const [filters, setFilters] = useState({
-    fromDate: "",
-    toDate: "",
-    city: "Ø§Ù„ÙƒÙ„",
-    type: "Ø§Ù„ÙƒÙ„",
-  });
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const visibleIncidents = useMemo(
-    () => getVisibleIncidents(incidents, currentUser),
-    [currentUser, incidents],
-  );
-  const filteredIncidents = useMemo(
-    () =>
-      visibleIncidents.filter((incident) => {
-        const cityMatch = filters.city === "Ø§Ù„ÙƒÙ„" || incident.city === filters.city;
-        const typeMatch = filters.type === "Ø§Ù„ÙƒÙ„" || incident.type === filters.type;
-        return cityMatch && typeMatch;
-      }),
-    [filters.city, filters.type, visibleIncidents],
-  );
-
-  const updateFilter = (key) => (event) =>
-    setFilters((current) => ({ ...current, [key]: event.target.value }));
-
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    await wait(1100);
-    setIsGenerating(false);
-      onToast(
-      "success",
-      "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ù…ÙˆØ³Ù…ÙŠ",
-      "Ø§Ù„Ø¥Ø­ØµØ§Ø¦ÙŠØ§Øª Ø§Ù„Ø¢Ù† ØªØ¹ÙƒØ³ Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ø§Ù„Ù…Ø®ØªØ§Ø±Ø© Ù„Ù„Ø­Ø¬Ø§Ø¬ ÙˆØ§Ù„Ù…Ø¹ØªÙ…Ø±ÙŠÙ† Ø¨Ø¯ÙˆÙ† Ø¨ÙŠØ§Ù†Ø§Øª ØªØ¹Ø±ÙŠÙÙŠØ©.",
-    );
-  };
-
-  const exportCsv = () => {
-    if (!hasPermission(currentUser, "reports:export")) {
-      onToast("danger", "Ø§Ù„ØªØµØ¯ÙŠØ± ØºÙŠØ± Ù…ØªØ§Ø­", "Ø§Ù„Ø¯ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠ Ù„Ø§ ÙŠÙ…Ù„Ùƒ ØµÙ„Ø§Ø­ÙŠØ© Ø§Ù„ØªØµØ¯ÙŠØ±.");
-      return;
-    }
-
-    const headers = [
-      "id",
-      "source",
-      "rcNumber",
-      "city",
-      "location",
-      "type",
-      "severity",
-      "patients",
-      "status",
-      "createdBy",
-      "team",
-      "time",
-      "notes",
-    ];
-    const rows = [
-      headers.join(","),
-      ...filteredIncidents.map((incident) =>
-        headers
-          .map((key) => String(incident[key] ?? "").replaceAll(",", " "))
-          .join(","),
-      ),
-    ];
-
-    const blob = new Blob([rows.join("\n")], {
-      type: "text/csv;charset=utf-8",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "hajj-umrah-incidents.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
-
-  const heatCases = filteredIncidents.filter((incident) =>
-    incident.type.includes("Ø­Ø±Ø§Ø±ÙŠ"),
-  ).length;
-  const redCrescentCases = filteredIncidents.filter((incident) =>
-    incident.source.includes("Ø§Ù„Ù‡Ù„Ø§Ù„"),
-  ).length;
-  const selfDispatchedCases = filteredIncidents.filter((incident) =>
-    incident.source.includes("Ù…Ø¨Ø§Ø´Ø±Ø©"),
-  ).length;
-  const totalPatients = filteredIncidents.reduce(
-    (sum, incident) => sum + Number(incident.patients || 0),
-    0,
-  );
-
-  return (
-    <div className="grid gap-6 xl:grid-cols-3">
-      <Card className="rounded-3xl border-0 shadow-sm xl:col-span-2">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-bold text-slate-900">ØªÙ‚Ø§Ø±ÙŠØ± ÙˆØ¥Ø­ØµØ§Ø¦ÙŠØ§Øª</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Ø¨ÙŠØ§Ù†Ø§Øª Ù…Ø¬Ù…Ø¹Ø© Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ø§Ù„Ø­Ø¬ ÙˆØ§Ù„Ø¹Ù…Ø±Ø© Ø¨Ø¯ÙˆÙ† Ø£Ø³Ù…Ø§Ø¡ Ø£Ùˆ Ù‡ÙˆÙŠØ§Øª.
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <StatCard
-              title="Ø£ÙƒØ«Ø± Ù†ÙˆØ¹ Ù…Ø¨Ø§Ø´Ø±Ø©"
-              value="Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ"
-              icon={Ambulance}
-              hint={`${heatCases} Ø­Ø§Ù„Ø§Øª Ø­Ø±Ø§Ø±ÙŠØ© Ø¶Ù…Ù† Ø§Ù„Ù†ØªØ§Ø¦Ø¬ Ø§Ù„Ø­Ø§Ù„ÙŠØ©`}
-            />
-            <StatCard
-              title="Ø¨Ù„Ø§ØºØ§Øª Ø§Ù„Ù‡Ù„Ø§Ù„ Ø§Ù„Ø£Ø­Ù…Ø±"
-              value={String(redCrescentCases)}
-              icon={HeartPulse}
-              hint="Ø§Ù„Ø­Ø§Ù„Ø§Øª Ø§Ù„Ù…Ø­Ø§Ù„Ø© Ø±Ø³Ù…ÙŠÙ‹Ø§"
-            />
-            <StatCard
-              title="Ù…Ø¨Ø§Ø´Ø±Ø§Øª Ù…ÙŠØ¯Ø§Ù†ÙŠØ©"
-              value={String(selfDispatchedCases)}
-              icon={Users}
-              hint="Ù…Ù† Ø§Ù„ÙØ±Ù‚ Ø§Ù„Ø±Ø§Ø¬Ù„Ø© ÙˆØ§Ù„Ø«Ø§Ø¨ØªØ©"
-            />
-            <StatCard
-              title="Ø¥Ø¬Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…Ø³ØªÙÙŠØ¯ÙŠÙ†"
-              value={String(totalPatients)}
-              icon={FileText}
-              hint="Ø¨Ø¯ÙˆÙ† Ø¨ÙŠØ§Ù†Ø§Øª ØªØ¹Ø±ÙŠÙÙŠØ©"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="rounded-3xl border-0 shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-bold text-slate-900">Ø§Ù„ÙÙ„Ø§ØªØ±</h2>
-          <div className="mt-5 space-y-4">
-            <Field
-              label="Ù…Ù† ØªØ§Ø±ÙŠØ®"
-              type="date"
-              value={filters.fromDate}
-              onChange={updateFilter("fromDate")}
-            />
-            <Field
-              label="Ø¥Ù„Ù‰ ØªØ§Ø±ÙŠØ®"
-              type="date"
-              value={filters.toDate}
-              onChange={updateFilter("toDate")}
-            />
-            <SelectField
-              label="Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©"
-              value={filters.city}
-              onChange={updateFilter("city")}
-              options={["Ø§Ù„ÙƒÙ„", "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©", "Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©"]}
-            />
-            <SelectField
-              label="Ù†ÙˆØ¹ Ø§Ù„Ø¨Ù„Ø§Øº"
-              value={filters.type}
-              onChange={updateFilter("type")}
-              options={[
-                "Ø§Ù„ÙƒÙ„",
-                "Ø¥Ø¬Ù‡Ø§Ø¯ Ø­Ø±Ø§Ø±ÙŠ",
-                "Ø¥ØºÙ…Ø§Ø¡",
-                "Ø¶ÙŠÙ‚ ØªÙ†ÙØ³",
-                "Ø£Ù„Ù… ØµØ¯Ø±",
-                "Ø¥Ø¬Ù‡Ø§Ø¯ Ø¹Ø§Ù…",
-              ]}
-            />
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full rounded-2xl bg-red-600 hover:bg-red-700 disabled:opacity-70"
-            >
-              {isGenerating ? (
-                <>
-                  <LoaderCircle className="mr-2 animate-spin" size={16} />
-                  Ø¬Ø§Ø± ØªÙˆÙ„ÙŠØ¯ Ø§Ù„ØªÙ‚Ø±ÙŠØ±
-                </>
-              ) : (
-                "ØªÙˆÙ„ÙŠØ¯ Ø§Ù„ØªÙ‚Ø±ÙŠØ±"
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full rounded-2xl"
-              onClick={exportCsv}
-            >
-              ØªØµØ¯ÙŠØ± CSV
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function RoleBadge({ roleLabel }) {
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-medium ${
-        roleStyles[roleLabel] || "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {roleLabel}
-    </span>
-  );
-}
-
-function AccessDenied({ title, description }) {
-  return (
-    <Card className="rounded-3xl border-0 shadow-sm">
-      <CardContent className="flex min-h-[420px] flex-col items-center justify-center p-8 text-center">
-        <div className="mb-5 rounded-3xl bg-red-50 p-5 text-red-600">
-          <Lock size={42} />
-        </div>
-        <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
-        <p className="mt-3 max-w-md text-sm leading-7 text-slate-500">
-          {description}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function UsersManagement({
-  users,
-  currentUser,
-  departments,
-  cities,
-  onAddUser,
-  onToggleUserStatus,
-  onUpdateUserRole,
-}) {
-  const availableCities = cities.length > 0 ? cities : initialCities;
-  const availableDepartments =
-    departments.length > 0 ? departments : initialDepartments;
+function UsersPage({ users, cities, departments, onAddUser }) {
   const [form, setForm] = useState({
-    memberId: "",
     name: "",
-    phone: "",
-    password: "",
-    roleKey: "field_responder",
-    scope: availableCities[0] || "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©",
-    team: availableDepartments[0] || "Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª",
+    mobile: "",
+    role: "مسعف ميداني",
+    city: cities[0] || "",
+    team: departments[0] || "",
   });
-  const canManageUsers = hasPermission(currentUser, "users:manage");
 
-  const updateField = (key) => (event) =>
-    setForm((current) => ({ ...current, [key]: event.target.value }));
-
-  const handleSubmit = () => {
-    if (
-      !canManageUsers ||
-      !form.memberId.trim() ||
-      !form.name.trim() ||
-      !form.phone.trim() ||
-      !form.password.trim()
-    ) {
-      return;
-    }
-
-    onAddUser({
-      ...form,
-      memberId: form.memberId.trim(),
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      password: form.password.trim(),
-      team: form.team.trim() || "ØºÙŠØ± Ù…Ø­Ø¯Ø¯",
-    });
-
-    setForm({
-      memberId: "",
-      name: "",
-      phone: "",
-      password: "",
-      roleKey: "field_responder",
-      scope: availableCities[0] || "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø©",
-      team: availableDepartments[0] || "Ø§Ù„Ø¹Ù…Ù„ÙŠØ§Øª",
-    });
-  };
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-      <Card className="rounded-3xl border-0 shadow-sm">
-        <CardContent className="p-6">
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù†Ø´Ø·Ø©</h2>
-              <p className="text-sm text-slate-500">
-                Ø¥Ø¯Ø§Ø±Ø© Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø© Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ© ÙˆØªÙˆØ²ÙŠØ¹Ù‡Ø§ Ø­Ø³Ø¨ Ø§Ù„Ø¯ÙˆØ± ÙˆØ§Ù„Ù†Ø·Ø§Ù‚.
-              </p>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-              {users.length} Ø­Ø³Ø§Ø¨Ø§Øª
-            </span>
-          </div>
+    <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <SectionCard title="المستخدمون" subtitle="المستخدمون الافتراضيون المحفوظون محليًا">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-right text-sm">
+            <thead>
+              <tr className="bg-slate-50 text-slate-500">
+                {["الاسم", "الجوال", "الدور", "المدينة", "الفريق", "الحالة"].map((header, index) => (
+                  <th
+                    key={header}
+                    className={`px-4 py-3 ${index === 0 ? "rounded-r-2xl" : ""} ${
+                      index === 5 ? "rounded-l-2xl" : ""
+                    }`}
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id} className="border-b border-slate-100 last:border-b-0">
+                  <td className="px-4 py-4 font-semibold text-slate-800">{user.name}</td>
+                  <td className="px-4 py-4 text-slate-600">{user.mobile}</td>
+                  <td className="px-4 py-4 text-slate-600">{user.role}</td>
+                  <td className="px-4 py-4 text-slate-600">{user.city}</td>
+                  <td className="px-4 py-4 text-slate-600">{user.team}</td>
+                  <td className="px-4 py-4">
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                      {user.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
 
-          <div className="grid gap-4">
-            {users.map((user) => {
-              const role = getRoleByKey(user.roleKey);
-              const isCurrent = user.id === currentUser?.id;
-
-              return (
-                <div
-                  key={user.id}
-                  className="rounded-3xl border border-slate-100 bg-white p-5"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-bold text-slate-900">{user.name}</p>
-                        {isCurrent ? (
-                          <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
-                            Ø§Ù„Ø¬Ù„Ø³Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ©
-                          </span>
-                        ) : null}
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${
-                            user.status === "Ù†Ø´Ø·"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {user.status}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {user.phone} Â· Ø±Ù‚Ù… Ø§Ù„Ø¹Ø¶ÙˆÙŠØ©: {user.memberId || "ØºÙŠØ± Ù…Ø­Ø¯Ø¯"}
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <RoleBadge roleLabel={role?.label || user.roleKey} />
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                          {user.scope}
-                        </span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                          {user.team}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <select
-                        value={user.roleKey}
-                        onChange={(event) =>
-                          onUpdateUserRole(user.id, event.target.value)
-                        }
-                        disabled={!canManageUsers}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-red-400"
-                      >
-                        {roleTemplates.map((roleOption) => (
-                          <option key={roleOption.key} value={roleOption.key}>
-                            {roleOption.label}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        variant="outline"
-                        className="rounded-2xl"
-                        onClick={() => onToggleUserStatus(user.id)}
-                        disabled={!canManageUsers}
-                      >
-                        {user.status === "Ù†Ø´Ø·" ? "ØªØ¹Ù„ÙŠÙ‚ Ø§Ù„Ø­Ø³Ø§Ø¨" : "ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-3xl border-0 shadow-sm">
-        <CardContent className="p-6">
-          <h2 className="text-lg font-bold text-slate-900">Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Ø£Ø¶Ù Ø¹Ø¶ÙˆÙ‹Ø§ Ø¬Ø¯ÙŠØ¯Ù‹Ø§ ÙˆØ­Ø¯Ø¯ Ø¯ÙˆØ±Ù‡ ÙˆÙ†Ø·Ø§Ù‚ Ù…Ø¨Ø§Ø´Ø±ØªÙ‡ Ù„Ù„Ù…ÙˆØ³Ù….
-          </p>
-          <div className="mt-5 space-y-4">
-            <Field
-              label="Ø±Ù‚Ù… Ø§Ù„Ø¹Ø¶ÙˆÙŠØ©"
-              placeholder="Ù…Ø«Ø§Ù„: 1004"
-              value={form.memberId}
-              onChange={updateField("memberId")}
-            />
-            <Field
-              label="Ø§Ø³Ù… Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…"
-              placeholder="Ù…Ø«Ø§Ù„: Ù…Ø­Ù…Ø¯ Ø§Ù„Ø¹Ù…Ø±ÙŠ"
+      <SectionCard title="إضافة مستخدم" subtitle="إضافة حساب محلي جديد للتجربة">
+        <div className="space-y-4">
+          <Field label="الاسم">
+            <input
               value={form.name}
-              onChange={updateField("name")}
+              onChange={(event) => updateField("name", event.target.value)}
+              placeholder="اسم المستخدم"
+              className={inputClass}
             />
-            <Field
-              label="Ø±Ù‚Ù… Ø§Ù„Ø¬ÙˆØ§Ù„"
+          </Field>
+          <Field label="الجوال">
+            <input
+              value={form.mobile}
+              onChange={(event) => updateField("mobile", event.target.value)}
               placeholder="05xxxxxxxx"
-              value={form.phone}
-              onChange={updateField("phone")}
+              className={inputClass}
             />
-            <Field
-              label="ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø£ÙˆÙ„ÙŠØ©"
-              placeholder="Ø«Ù…Ø§Ù†ÙŠØ© Ø£Ø­Ø±Ù Ø£Ùˆ Ø£ÙƒØ«Ø±"
-              type="password"
-              value={form.password}
-              onChange={updateField("password")}
-            />
-            <SelectField
-              label="Ø§Ù„Ø¯ÙˆØ±"
-              value={form.roleKey}
-              onChange={updateField("roleKey")}
-              options={roleTemplates.map((role) => ({
-                value: role.key,
-                label: role.label,
-              }))}
-            />
-            <SelectField
-              label="Ø§Ù„Ù†Ø·Ø§Ù‚"
-              value={form.scope}
-              onChange={updateField("scope")}
-              options={[
-                ...availableCities,
-                "Ù…ÙƒØ© Ø§Ù„Ù…ÙƒØ±Ù…Ø© ÙˆØ§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ù†ÙˆØ±Ø©",
-                "Ø§Ù„Ù…Ø´Ø§Ø¹Ø± Ø§Ù„Ù…Ù‚Ø¯Ø³Ø©",
-              ]}
-            />
-            <SelectField
-              label="Ø§Ù„Ù‚Ø³Ù… / Ø§Ù„ÙØ±ÙŠÙ‚"
-              value={form.team}
-              onChange={updateField("team")}
-              options={availableDepartments}
-            />
-            <Button
-              className="w-full rounded-2xl bg-red-600 hover:bg-red-700"
-              disabled={!canManageUsers}
-              onClick={handleSubmit}
+          </Field>
+          <Field label="الدور">
+            <select
+              value={form.role}
+              onChange={(event) => updateField("role", event.target.value)}
+              className={inputClass}
             >
-              Ø¥Ø¶Ø§ÙØ© Ø§Ù„Ø­Ø³Ø§Ø¨
-            </Button>
-            {!canManageUsers ? (
-              <p className="text-xs leading-6 text-slate-400">
-                Ø§Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„Ø­Ø§Ù„ÙŠ ÙŠØ³ØªØ·ÙŠØ¹ Ø¹Ø±Ø¶ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† ÙÙ‚Ø·. ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª ÙŠØªØ·Ù„Ø¨ ØµÙ„Ø§Ø­ÙŠØ©
-                Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ†.
-              </p>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+              {Object.keys(ROLE_ACCESS).map((role) => (
+                <option key={role}>{role}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="المدينة">
+            <select
+              value={form.city}
+              onChange={(event) => updateField("city", event.target.value)}
+              className={inputClass}
+            >
+              {[...cities, "الكل"].map((city) => (
+                <option key={city}>{city}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="القسم">
+            <select
+              value={form.team}
+              onChange={(event) => updateField("team", event.target.value)}
+              className={inputClass}
+            >
+              {departments.map((department) => (
+                <option key={department}>{department}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Button
+            className="w-full bg-red-600 hover:bg-red-500"
+            onClick={() => {
+              onAddUser(form);
+              setForm({
+                name: "",
+                mobile: "",
+                role: "مسعف ميداني",
+                city: cities[0] || "",
+                team: departments[0] || "",
+              });
+            }}
+          >
+            حفظ المستخدم
+          </Button>
+        </div>
+      </SectionCard>
     </div>
   );
 }
 
-function SecurityPermissions({
-  currentUser,
-  securitySettings,
-  onToggleSetting,
+function SecurityPage({
   departments,
   cities,
   sites,
+  auditLogs,
+  incidentSequence,
   onAddDepartment,
   onDeleteDepartment,
   onAddCity,
   onDeleteCity,
   onAddSite,
   onDeleteSite,
-  incidentSequence,
-  auditLog,
+  onResetData,
 }) {
-  const canManageSecurity = hasPermission(currentUser, "security:manage");
-  const currentRole = getRoleByKey(currentUser?.roleKey);
   const [departmentName, setDepartmentName] = useState("");
   const [cityName, setCityName] = useState("");
-  const [siteForm, setSiteForm] = useState({
-    city: cities[0] || initialCities[0],
-    name: "",
-  });
+  const [siteCity, setSiteCity] = useState(cities[0] || "");
+  const [siteName, setSiteName] = useState("");
 
   useEffect(() => {
-    if (!siteForm.city && cities.length > 0) {
-      setSiteForm((current) => ({ ...current, city: cities[0] }));
+    if (!cities.includes(siteCity)) {
+      setSiteCity(cities[0] || "");
     }
-  }, [cities, siteForm.city]);
-
-  const submitDepartment = () => {
-    if (!canManageSecurity || !departmentName.trim()) {
-      return;
-    }
-
-    onAddDepartment(departmentName.trim());
-    setDepartmentName("");
-  };
-
-  const submitCity = () => {
-    if (!canManageSecurity || !cityName.trim()) {
-      return;
-    }
-
-    onAddCity(cityName.trim());
-    setCityName("");
-  };
-
-  const submitSite = () => {
-    if (!canManageSecurity || !siteForm.name.trim() || !siteForm.city) {
-      return;
-    }
-
-    onAddSite({
-      city: siteForm.city,
-      name: siteForm.name.trim(),
-    });
-    setSiteForm((current) => ({ ...current, name: "" }));
-  };
+  }, [cities, siteCity]);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-3">
-        <StatCard
-          title="Ø§Ù„Ø¯ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠ"
-          value={currentRole?.label || "-"}
-          icon={ShieldCheck}
-          hint="ÙŠØ­Ø¯Ø¯ Ø§Ù„ØµÙØ­Ø§Øª ÙˆØ§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª Ø§Ù„Ù…ØªØ§Ø­Ø© ÙÙŠ Ø§Ù„Ø¬Ù„Ø³Ø©"
-        />
-        <StatCard
-          title="Ø¹Ø¯Ø¯ Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª"
-          value={String(currentRole?.permissions.length || 0)}
-          icon={CheckCircle2}
-          hint="Ù…Ø±Ø¨ÙˆØ·Ø© Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ø§Ù„Ø¯ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠ"
-        />
-        <StatCard
-          title="Ø³ÙŠØ§Ø³Ø© Ø§Ù„Ø§Ø­ØªÙØ§Ø¸"
-          value={securitySettings.retentionPolicy}
-          icon={FileText}
-          hint="Ø¹Ù„Ù‰ Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…ÙˆØ³Ù… ÙˆØ³Ø¬Ù„ Ø§Ù„ØªØ¯Ù‚ÙŠÙ‚"
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-5">
-              <h2 className="text-lg font-bold text-slate-900">Ù…ØµÙÙˆÙØ© Ø§Ù„Ø£Ø¯ÙˆØ§Ø±</h2>
-              <p className="text-sm text-slate-500">
-                Ø§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª Ø§Ù„Ù…ÙØ¹Ù„Ø© Ù„ÙƒÙ„ Ø¯ÙˆØ± ØªØ´ØºÙŠÙ„ÙŠ ÙÙŠ Ù…Ù†ØµØ© Ø§Ù„Ø­Ø¬ ÙˆØ§Ù„Ø¹Ù…Ø±Ø©.
-              </p>
-            </div>
-            <div className="grid gap-4">
-              {roleTemplates.map((role) => (
-                <div
-                  key={role.key}
-                  className="rounded-3xl border border-slate-100 bg-white p-5"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-900">{role.label}</p>
-                        <RoleBadge roleLabel={role.label} />
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {role.description}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                      {role.permissions.length} ØµÙ„Ø§Ø­ÙŠØ§Øª
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-3">
-                    {permissionSections.map((section) => (
-                      <div key={section.title} className="rounded-2xl bg-slate-50 p-4">
-                        <p className="text-sm font-medium text-slate-900">
-                          {section.title}
-                        </p>
-                        <div className="mt-3 space-y-2">
-                          {section.items.map((permission) => {
-                            const enabled = role.permissions.includes(permission.key);
-
-                            return (
-                              <div
-                                key={permission.key}
-                                className={`rounded-2xl px-3 py-2 text-xs ${
-                                  enabled
-                                    ? "bg-emerald-50 text-emerald-700"
-                                    : "bg-white text-slate-400"
-                                }`}
-                              >
-                                {permission.label}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="rounded-3xl border-0 shadow-sm">
-            <CardContent className="p-6">
-              <h2 className="text-lg font-bold text-slate-900">Ø§Ù„Ø³ÙŠØ§Ø³Ø§Øª Ø§Ù„Ù†Ø´Ø·Ø©</h2>
-              <div className="mt-5 space-y-4">
-                <div className="rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        Ø§Ù„ØªØ­Ù‚Ù‚ Ø§Ù„Ø«Ù†Ø§Ø¦ÙŠ Ù„Ù„Ø¥Ø´Ø±Ø§Ù
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        Ù…Ø·Ù„ÙˆØ¨ Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù‚ÙŠØ§Ø¯Ø© ÙˆØ§Ù„Ø¥Ø´Ø±Ø§Ù.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl"
-                      disabled={!canManageSecurity}
-                      onClick={() => onToggleSetting("requireOtpForSupervisors")}
-                    >
-                      {securitySettings.requireOtpForSupervisors ? "Ù…ÙØ¹Ù„" : "ØºÙŠØ± Ù…ÙØ¹Ù„"}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-slate-900">ØªÙ‚ÙŠÙŠØ¯ Ø§Ù„ØªØµØ¯ÙŠØ±</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        ÙŠØ³Ù…Ø­ ÙÙ‚Ø· Ù„Ù„Ø£Ø¯ÙˆØ§Ø± Ø§Ù„Ù…Ø®ÙˆÙ„Ø© Ø¨ØªØµØ¯ÙŠØ± Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl"
-                      disabled={!canManageSecurity}
-                      onClick={() => onToggleSetting("restrictExports")}
-                    >
-                      {securitySettings.restrictExports ? "Ù…Ù‚ÙŠØ¯" : "Ù…ÙØªÙˆØ­"}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 p-4">
-                  <p className="font-medium text-slate-900">Ù…Ù„Ø®Øµ Ø§Ù„Ø¬Ù„Ø³Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ©</p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù… Ø§Ù„Ø­Ø§Ù„ÙŠ: {currentUser?.name}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Ø§Ù„Ø¯ÙˆØ±: {currentRole?.label}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-3xl border-0 shadow-sm">
-            <CardContent className="p-6">
-              <h2 className="text-lg font-bold text-slate-900">Ø³Ø¬Ù„ Ø§Ù„ØªØ¯Ù‚ÙŠÙ‚</h2>
-              <div className="mt-5 space-y-3">
-                {auditLog.map((item) => (
-                  <div key={item.id} className="rounded-2xl bg-slate-50 p-4">
-                    <p className="font-medium text-slate-900">{item.action}</p>
-                    <p className="mt-1 text-sm text-slate-500">{item.actor}</p>
-                    <p className="mt-2 text-xs text-slate-400">{item.time}</p>
-                  </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <SectionCard title="سياسات الأمان" subtitle="ملخص سريع للصلاحيات الحالية">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-right text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500">
+                  <th className="rounded-r-2xl px-4 py-3">السياسة</th>
+                  <th className="rounded-l-2xl px-4 py-3">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["رمز دخول PIN", "مفعل تجريبيًا"],
+                  ["تقييد الصفحات حسب الدور", "مفعل"],
+                  ["تقييد عرض المباشرات حسب المستخدم/الفريق", "مفعل"],
+                  ["إدارة الأقسام", "مدير النظام فقط"],
+                  ["إدارة المدن والمواقع", "مدير النظام فقط"],
+                  ["سجل تتبع الحسابات", "مفعل"],
+                  ["الحذف", "للمشرف ومدير النظام فقط"],
+                ].map(([policy, status]) => (
+                  <tr key={policy} className="border-b border-slate-100 last:border-b-0">
+                    <td className="px-4 py-4 text-slate-700">{policy}</td>
+                    <td className="px-4 py-4">
+                      <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                        {status}
+                      </span>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="إدارة البيانات التجريبية" subtitle="يمسح البيانات المحفوظة محليًا في المتصفح فقط">
+          <div className="space-y-4 text-right">
+            <p className="text-sm text-slate-600">
+              آخر رقم تسلسلي محفوظ: <span className="font-black text-slate-900">{incidentSequence}</span>
+            </p>
+            <Button className="bg-red-600 hover:bg-red-500" onClick={onResetData}>
+              مسح البيانات التجريبية
+            </Button>
+          </div>
+        </SectionCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ø£Ù‚Ø³Ø§Ù…</h2>
-                <p className="text-sm text-slate-500">
-                  Ø§Ù„Ø£Ù‚Ø³Ø§Ù… ÙˆØ§Ù„ÙØ±Ù‚ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…Ø© ÙÙŠ ØªÙˆØ²ÙŠØ¹ Ø§Ù„Ù…Ø³ØªØ®Ø¯Ù…ÙŠÙ† ÙˆØ§Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª.
-                </p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                {departments.length} Ø£Ù‚Ø³Ø§Ù…
-              </span>
-            </div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-              <input
-                value={departmentName}
-                onChange={(event) => setDepartmentName(event.target.value)}
-                placeholder="Ø§Ø³Ù… Ø§Ù„Ù‚Ø³Ù… Ø§Ù„Ø¬Ø¯ÙŠØ¯"
-                className={baseInputClassName}
-                disabled={!canManageSecurity}
-              />
-              <Button
-                className="rounded-2xl bg-red-600 hover:bg-red-700"
-                disabled={!canManageSecurity}
-                onClick={submitDepartment}
-              >
-                Ø¥Ø¶Ø§ÙØ© Ù‚Ø³Ù…
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {departments.map((department) => (
-                <div
-                  key={department}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"
+        <SectionCard title="إدارة الأقسام" subtitle="إضافة أو حذف الأقسام المرتبطة بالمستخدمين">
+          <div className="mb-4 flex flex-wrap gap-3">
+            <input
+              value={departmentName}
+              onChange={(event) => setDepartmentName(event.target.value)}
+              placeholder="اسم القسم الجديد"
+              className={`${inputClass} min-w-[240px] flex-1`}
+            />
+            <Button
+              onClick={() => {
+                onAddDepartment(departmentName);
+                setDepartmentName("");
+              }}
+            >
+              إضافة قسم
+            </Button>
+          </div>
+          <SimpleList
+            rows={departments.map((department) => ({
+              primary: department,
+              action: (
+                <Button
+                  className="bg-red-600 px-3 py-2 text-xs hover:bg-red-500"
+                  onClick={() => onDeleteDepartment(department)}
                 >
-                  <span className="font-medium text-slate-800">{department}</span>
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl text-red-700"
-                    disabled={!canManageSecurity}
-                    onClick={() => onDeleteDepartment(department)}
-                  >
-                    Ø­Ø°Ù
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  حذف
+                </Button>
+              ),
+            }))}
+          />
+        </SectionCard>
 
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ø¯Ù†</h2>
-                <p className="text-sm text-slate-500">
-                  Ø§Ù„Ù…Ø¯Ù† Ø§Ù„Ù…ÙØ¹Ù„Ø© ÙÙŠ Ø§Ù„Ù…Ø´Ø±ÙˆØ¹ ÙˆÙ†Ø·Ø§Ù‚Ø§Øª Ø§Ù„Ø¹Ù…Ù„ Ø§Ù„Ù…ÙŠØ¯Ø§Ù†ÙŠ.
-                </p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                {cities.length} Ù…Ø¯Ù†
-              </span>
-            </div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-              <input
-                value={cityName}
-                onChange={(event) => setCityName(event.target.value)}
-                placeholder="Ø§Ø³Ù… Ø§Ù„Ù…Ø¯ÙŠÙ†Ø©"
-                className={baseInputClassName}
-                disabled={!canManageSecurity}
-              />
-              <Button
-                className="rounded-2xl bg-red-600 hover:bg-red-700"
-                disabled={!canManageSecurity}
-                onClick={submitCity}
-              >
-                Ø¥Ø¶Ø§ÙØ© Ù…Ø¯ÙŠÙ†Ø©
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {cities.map((city) => (
-                <div
-                  key={city}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"
+        <SectionCard title="إدارة المدن" subtitle="إضافة أو حذف المدن المفعلة في البوابة">
+          <div className="mb-4 flex flex-wrap gap-3">
+            <input
+              value={cityName}
+              onChange={(event) => setCityName(event.target.value)}
+              placeholder="اسم المدينة"
+              className={`${inputClass} min-w-[240px] flex-1`}
+            />
+            <Button
+              onClick={() => {
+                onAddCity(cityName);
+                setCityName("");
+              }}
+            >
+              إضافة مدينة
+            </Button>
+          </div>
+          <SimpleList
+            rows={cities.map((city) => ({
+              primary: city,
+              action: (
+                <Button
+                  className="bg-red-600 px-3 py-2 text-xs hover:bg-red-500"
+                  onClick={() => onDeleteCity(city)}
                 >
-                  <span className="font-medium text-slate-800">{city}</span>
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl text-red-700"
-                    disabled={!canManageSecurity}
-                    onClick={() => onDeleteCity(city)}
-                  >
-                    Ø­Ø°Ù
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  حذف
+                </Button>
+              ),
+            }))}
+          />
+        </SectionCard>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…ÙˆØ³Ù…ÙŠØ©</h2>
-                <p className="text-sm text-slate-500">
-                  ØªØ±ØªØ¨Ø· ØµÙØ­Ø© Ù…Ø¨Ø§Ø´Ø±Ø© Ø¬Ø¯ÙŠØ¯Ø© Ø¨Ù‡Ø°Ù‡ Ø§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø­Ø³Ø¨ Ø§Ù„Ù…Ø¯ÙŠÙ†Ø© Ø§Ù„Ù…Ø®ØªØ§Ø±Ø©.
-                </p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
-                {sites.length} Ù…ÙˆØ§Ù‚Ø¹
-              </span>
-            </div>
-            <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)_140px]">
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+        <SectionCard title="إدارة المواقع" subtitle="إضافة أو حذف المواقع داخل كل مدينة">
+          <div className="mb-4 grid gap-4 md:grid-cols-2">
+            <Field label="المدينة">
               <select
-                value={siteForm.city}
-                onChange={(event) =>
-                  setSiteForm((current) => ({ ...current, city: event.target.value }))
-                }
-                className={baseInputClassName}
-                disabled={!canManageSecurity}
+                value={siteCity}
+                onChange={(event) => setSiteCity(event.target.value)}
+                className={inputClass}
               >
                 {cities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
+                  <option key={city}>{city}</option>
                 ))}
               </select>
+            </Field>
+            <Field label="اسم الموقع">
               <input
-                value={siteForm.name}
-                onChange={(event) =>
-                  setSiteForm((current) => ({ ...current, name: event.target.value }))
-                }
-                placeholder="Ø§Ø³Ù… Ø§Ù„Ù…ÙˆÙ‚Ø¹ Ø§Ù„Ù…ÙˆØ³Ù…ÙŠ"
-                className={baseInputClassName}
-                disabled={!canManageSecurity}
+                value={siteName}
+                onChange={(event) => setSiteName(event.target.value)}
+                placeholder="مثال: باب الملك عبدالعزيز"
+                className={inputClass}
               />
-              <Button
-                className="rounded-2xl bg-red-600 hover:bg-red-700"
-                disabled={!canManageSecurity}
-                onClick={submitSite}
-              >
-                Ø¥Ø¶Ø§ÙØ© Ù…ÙˆÙ‚Ø¹
-              </Button>
-            </div>
-            <div className="mt-5 space-y-3">
-              {sites.map((site, index) => (
-                <div
-                  key={`${site.city}-${site.name}-${index}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"
-                >
-                  <div>
-                    <p className="font-medium text-slate-900">{site.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">{site.city}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl text-red-700"
-                    disabled={!canManageSecurity}
-                    onClick={() => onDeleteSite(index)}
-                  >
-                    Ø­Ø°Ù
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+            </Field>
+          </div>
 
-        <Card className="rounded-3xl border-0 shadow-sm">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-bold text-slate-900">Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ¬Ø±ÙŠØ¨ÙŠØ©</h2>
-            <div className="mt-5 space-y-4">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="font-medium text-slate-900">Ø¢Ø®Ø± ØªØ³Ù„Ø³Ù„ Ù„Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {incidentSequence}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="font-medium text-slate-900">Ø¢Ù„ÙŠØ© Ø§Ù„Ø¹Ù…Ù„ Ø§Ù„Ø­Ø§Ù„ÙŠØ©</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  Ø§Ù„ØµÙØ­Ø© Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù„Ù„Ù…Ø¨Ø§Ø´Ø±Ø§Øª ØªØ³ØªØ®Ø¯Ù… Ù†ÙØ³ Ù…Ø´Ø±ÙˆØ¹Ù†Ø§ Ø§Ù„Ø­Ø§Ù„ÙŠØŒ ÙˆØªØ±Ø¨Ø· Ø§Ù„Ù…Ø¯Ù†
-                  ÙˆØ§Ù„Ù…ÙˆØ§Ù‚Ø¹ Ø§Ù„Ù…Ø­ÙÙˆØ¸Ø© Ù‡Ù†Ø§ Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ø§Ù„Ù†Ù…ÙˆØ°Ø¬ Ø§Ù„ØªØ´ØºÙŠÙ„ÙŠ.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function BottomNav({ active, setActive, currentUser }) {
-  const mobileItems = navItems
-    .slice(0, 4)
-    .filter((item) => canAccessPage(currentUser, item.key));
-
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">
-      <div className="grid grid-cols-4 gap-2">
-        {mobileItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.key === active;
-
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setActive(item.key)}
-              className={`flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-medium transition ${
-                isActive
-                  ? "bg-red-50 text-red-700"
-                  : "text-slate-500 hover:bg-slate-50"
-              }`}
+          <div className="mb-4">
+            <Button
+              onClick={() => {
+                onAddSite(siteCity, siteName);
+                setSiteName("");
+              }}
             >
-              <Icon size={18} />
-              {item.label}
-            </button>
-          );
-        })}
+              إضافة موقع
+            </Button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-right text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500">
+                  <th className="rounded-r-2xl px-4 py-3">المدينة</th>
+                  <th className="px-4 py-3">الموقع</th>
+                  <th className="rounded-l-2xl px-4 py-3">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sites.map((site, index) => (
+                  <tr key={`${site.city}-${site.name}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                    <td className="px-4 py-4 text-slate-700">{site.city}</td>
+                    <td className="px-4 py-4 text-slate-700">{site.name}</td>
+                    <td className="px-4 py-4">
+                      <Button
+                        className="bg-red-600 px-3 py-2 text-xs hover:bg-red-500"
+                        onClick={() => onDeleteSite(index)}
+                      >
+                        حذف
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="سجل تتبع الحسابات" subtitle="آخر 40 عملية محلية">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-right text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500">
+                  <th className="rounded-r-2xl px-4 py-3">الوقت</th>
+                  <th className="px-4 py-3">المستخدم</th>
+                  <th className="px-4 py-3">العملية</th>
+                  <th className="rounded-l-2xl px-4 py-3">التفاصيل</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.length ? (
+                  auditLogs.slice(0, 40).map((log, index) => (
+                    <tr key={`${log.time}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                      <td className="px-4 py-4 text-slate-600">{log.time}</td>
+                      <td className="px-4 py-4 text-slate-600">{log.user}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-800">{log.action}</td>
+                      <td className="px-4 py-4 text-slate-600">{log.details}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-8 text-center text-slate-500">
+                      لا يوجد سجل حتى الآن
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
       </div>
     </div>
   );
 }
+
+function SimpleList({ rows }) {
+  return (
+    <div className="space-y-3">
+      {rows.map((row, index) => (
+        <div
+          key={`${row.primary}-${index}`}
+          className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3"
+        >
+          {row.action || <span />}
+          <div className="text-right">
+            <p className="font-semibold text-slate-800">{row.primary}</p>
+            {row.secondary ? <p className="text-xs text-slate-500">{row.secondary}</p> : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Field({ label, children, className = "" }) {
+  return (
+    <label className={`block text-right text-sm font-bold text-slate-700 ${className}`}>
+      <span>{label}</span>
+      <div className="mt-2">{children}</div>
+    </label>
+  );
+}
+
+const inputClass =
+  "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-300";
 
 export default function EmergencyResponderPortal() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [active, setActiveState] = useState("dashboard");
-  const [isLoginLoading, setIsLoginLoading] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState(() =>
-    readStorage(STORAGE_KEYS.notifications, initialNotifications),
-  );
-  const [toasts, setToasts] = useState([]);
-  const [users, setUsers] = useState(() => readStorage(STORAGE_KEYS.users, initialUsers));
+  const [users, setUsers] = useState(() => readStorage(STORAGE_KEYS.users, DEFAULT_USERS));
   const [incidents, setIncidents] = useState(() =>
-    readStorage(STORAGE_KEYS.incidents, initialIncidents),
-  );
-  const [currentUserId, setCurrentUserId] = useState(() =>
-    readStorage(STORAGE_KEYS.currentUserId, initialUsers[0]?.id ?? null),
-  );
-  const [loginUserId, setLoginUserId] = useState(() => {
-    const storedCurrentUserId = readStorage(
-      STORAGE_KEYS.currentUserId,
-      initialUsers[0]?.id ?? null,
-    );
-    return storedCurrentUserId ? String(storedCurrentUserId) : String(initialUsers[0]?.id ?? "");
-  });
-  const [loginPin, setLoginPin] = useState("");
-  const [auditLog, setAuditLog] = useState(() =>
-    readStorage(STORAGE_KEYS.auditLog, initialAuditLog),
-  );
-  const [securitySettings, setSecuritySettings] = useState(() =>
-    readStorage(STORAGE_KEYS.security, defaultSecuritySettings),
+    readStorage(STORAGE_KEYS.incidents, DEFAULT_INCIDENTS),
   );
   const [departments, setDepartments] = useState(() =>
-    readStorage(STORAGE_KEYS.departments, initialDepartments),
+    readStorage(STORAGE_KEYS.departments, DEFAULT_DEPARTMENTS),
   );
-  const [cities, setCities] = useState(() => readStorage(STORAGE_KEYS.cities, initialCities));
-  const [sites, setSites] = useState(() => readStorage(STORAGE_KEYS.sites, initialSites));
-  const [incidentSequence, setIncidentSequence] = useState(() => {
-    const storedIncidents = readStorage(STORAGE_KEYS.incidents, initialIncidents);
-    return String(
-      readStorage(
-        STORAGE_KEYS.incidentSequence,
-        deriveIncidentSequence(storedIncidents),
-      ),
-    );
-  });
-
-  const pushToast = (tone, title, body) => {
-    const id = Date.now() + Math.random();
-    setToasts((current) => [...current, { id, tone, title, body }]);
-  };
-
-  const currentUser = useMemo(
-    () => users.find((user) => user.id === currentUserId) || null,
-    [currentUserId, users],
+  const [cities, setCities] = useState(() => readStorage(STORAGE_KEYS.cities, DEFAULT_CITIES));
+  const [sites, setSites] = useState(() => readStorage(STORAGE_KEYS.sites, DEFAULT_SITES));
+  const [auditLogs, setAuditLogs] = useState(() =>
+    readStorage(STORAGE_KEYS.auditLogs, []),
   );
-  const currentRole = getRoleByKey(currentUser?.roleKey);
-  const unreadCount = notifications.length;
+
+  const [selectedUserId, setSelectedUserId] = useState(() =>
+    String(readStorage(STORAGE_KEYS.currentUserId, DEFAULT_USERS[0]?.id ?? "")),
+  );
+  const [pin, setPin] = useState(DEMO_PIN);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [activePage, setActivePage] = useState("dashboard");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    if (toasts.length === 0) {
-      return undefined;
-    }
-
-    const latestToast = toasts[toasts.length - 1];
-    const timeout = window.setTimeout(() => {
-      setToasts((current) => current.filter((item) => item.id !== latestToast.id));
-    }, 2800);
-
-    return () => window.clearTimeout(timeout);
-  }, [toasts]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(users));
+    saveStorage(STORAGE_KEYS.users, users);
   }, [users]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.incidents, JSON.stringify(incidents));
+    saveStorage(STORAGE_KEYS.incidents, incidents);
+    syncIncidentSequence(incidents);
   }, [incidents]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.auditLog, JSON.stringify(auditLog));
-  }, [auditLog]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.security, JSON.stringify(securitySettings));
-  }, [securitySettings]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.departments, JSON.stringify(departments));
+    saveStorage(STORAGE_KEYS.departments, departments);
   }, [departments]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.cities, JSON.stringify(cities));
+    saveStorage(STORAGE_KEYS.cities, cities);
   }, [cities]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.sites, JSON.stringify(sites));
+    saveStorage(STORAGE_KEYS.sites, sites);
   }, [sites]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.notifications, JSON.stringify(notifications));
-  }, [notifications]);
+    saveStorage(STORAGE_KEYS.auditLogs, auditLogs);
+  }, [auditLogs]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEYS.currentUserId,
-      JSON.stringify(currentUserId),
-    );
-  }, [currentUserId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEYS.incidentSequence,
-      JSON.stringify(incidentSequence),
-    );
-  }, [incidentSequence]);
-
-  useEffect(() => {
-    if (!loggedIn) {
-      return undefined;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setIsPageLoading(false);
-    }, 320);
-
-    return () => window.clearTimeout(timeout);
-  }, [active, loggedIn]);
-
-  useEffect(() => {
-    if (loggedIn && !canAccessPage(currentUser, active)) {
-      setActiveState("dashboard");
-    }
-  }, [active, currentUser, loggedIn]);
-
-  useEffect(() => {
-    if (!currentUserId && users.length > 0) {
-      setCurrentUserId(users[0].id);
-      setLoginUserId(String(users[0].id));
-    }
-  }, [currentUserId, users]);
-
-  const addAuditEntry = (
-    action,
-    actor = currentUser?.name || "النظام",
-    details = "",
-  ) => {
-    const entry = {
-      id: Date.now() + Math.random(),
-      action,
-      actor,
-      details,
-      time: new Date().toLocaleString("ar-SA"),
-    };
-
-    setAuditLog((current) => [entry, ...current].slice(0, 200));
-  };
-
-  const handleLogin = async () => {
-    if (loginPin.trim() !== DEMO_PIN) {
-      pushToast("danger", "رمز الدخول غير صحيح", "استخدم رمز الدخول التجريبي الصحيح للوصول إلى البوابة.");
-      return;
-    }
-
-    const selectedUser = users.find((user) => String(user.id) === String(loginUserId));
-    if (!selectedUser) {
-      pushToast("danger", "تعذر تسجيل الدخول", "اختر حسابًا صالحًا من القائمة.");
-      return;
-    }
-
-    if (selectedUser.status !== "نشط") {
-      pushToast("danger", "الحساب غير نشط", "لا يمكن الدخول بحساب معلق.");
-      return;
-    }
-
-    setIsLoginLoading(true);
-    window.setTimeout(() => {
-      setCurrentUserId(selectedUser.id);
-      setLoggedIn(true);
-      setActiveState("dashboard");
-      setLoginPin("");
-      setNotificationOpen(false);
-      setMobileNavOpen(false);
-      addAuditEntry("تسجيل دخول", `${selectedUser.name} - ${getRoleByKey(selectedUser.roleKey)?.label || selectedUser.roleKey}`, "دخول المستخدم إلى البوابة");
-      pushToast("success", "تم تسجيل الدخول", `مرحبًا ${selectedUser.name}`);
-      setIsLoginLoading(false);
-    }, 250);
-  };
-
-  const handleLogout = () => {
     if (currentUser) {
-      addAuditEntry("تسجيل خروج", currentUser.name, "خروج المستخدم من البوابة");
+      localStorage.setItem(STORAGE_KEYS.currentUserId, String(currentUser.id));
     }
-    setLoggedIn(false);
-    setActiveState("dashboard");
-    setNotificationOpen(false);
-    setMobileNavOpen(false);
-    setLoginPin("");
-    pushToast("success", "تم تسجيل الخروج", "انتهت الجلسة الحالية بنجاح.");
-  };
+  }, [currentUser]);
 
-  const setActive = (next) => {
-    if (next === active) {
-      setMobileNavOpen(false);
+  const scopedIncidents = useMemo(
+    () => visibleIncidents(currentUser, incidents),
+    [currentUser, incidents],
+  );
+
+  const incidentSequence = localStorage.getItem(STORAGE_KEYS.incidentSequence) || "0";
+
+  function pushAudit(action, details, actor = currentUser) {
+    setAuditLogs((current) => [createAuditEntry(actor, action, details), ...current].slice(0, 200));
+  }
+
+  function handleLogin() {
+    if (pin.trim() !== DEMO_PIN) {
+      alert("رمز الدخول غير صحيح");
       return;
     }
-
-    if (!canAccessPage(currentUser, next)) {
-      setMobileNavOpen(false);
-      setNotificationOpen(false);
-      pushToast(
-        "danger",
-        "الوصول غير متاح",
-        "الدور الحالي لا يملك الصلاحية المطلوبة لفتح هذه الصفحة.",
-      );
+    const user = users.find((entry) => String(entry.id) === String(selectedUserId));
+    if (!user) {
+      alert("لم يتم العثور على المستخدم");
       return;
     }
+    setCurrentUser(user);
+    setActivePage("dashboard");
+    pushAudit("تسجيل دخول", "دخول المستخدم إلى البوابة", user);
+  }
 
-    setIsPageLoading(true);
-    setNotificationOpen(false);
-    setMobileNavOpen(false);
-    startTransition(() => {
-      setActiveState(next);
-    });
-  };
+  function handleLogout() {
+    pushAudit("تسجيل خروج", "خروج المستخدم من البوابة");
+    setCurrentUser(null);
+    setPin(DEMO_PIN);
+    setMobileOpen(false);
+  }
 
-  const addNotification = ({ title, body, time, tone }) => {
-    setNotifications((current) => [
-      { id: Date.now() + Math.random(), title, body, time, tone },
-      ...current,
-    ]);
-  };
+  function navigate(page) {
+    if (!currentUser || !canAccess(currentUser.role, page)) {
+      alert("لا تملك صلاحية الوصول لهذه الصفحة");
+      return;
+    }
+    setActivePage(page);
+  }
 
-  const handleAddUser = (userInput) => {
-    const role = getRoleByKey(userInput.roleKey);
-    const newUser = {
-      id: Date.now(),
-      ...userInput,
-      status: "نشط",
+  function handleSaveIncident(form, status) {
+    const id = getNextIncidentNumber();
+    const incident = {
+      id,
+      source: form.source,
+      rc: form.rc.trim(),
+      city: form.city,
+      location: form.seasonLocation + (form.location.trim() ? ` - ${form.location.trim()}` : ""),
+      type: form.type,
+      severity: form.severity,
+      patientCount: Number(form.patientCount || 1),
+      category: form.category,
+      intervention: form.intervention,
+      handover: form.handover,
+      status,
+      createdBy: currentUser.name,
+      team: currentUser.team,
+      time:
+        form.time ||
+        new Date().toLocaleTimeString("ar-SA", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      notes: form.notes.trim(),
     };
 
-    setUsers((current) => [newUser, ...current]);
-    addAuditEntry(
-      `إنشاء حساب جديد باسم ${newUser.name} بدور ${role?.label || "-"}`,
-      currentUser?.name || "النظام",
-    );
-    pushToast("success", "تم إنشاء الحساب", `أضيف ${newUser.name} إلى قائمة المستخدمين.`);
-  };
+    setIncidents((current) => [...current, incident]);
+    pushAudit("حفظ مباشرة", `تم حفظ المباشرة رقم ${id} بحالة: ${status}`);
+    alert(`تم حفظ المباشرة: ${id}`);
+    setActivePage("incidents");
+  }
 
-  const handleToggleUserStatus = (userId) => {
-    const targetUser = users.find((user) => user.id === userId);
-
-    if (!targetUser) {
-      return;
-    }
-
-    const nextStatus = targetUser.status === "نشط" ? "معلق" : "نشط";
-
-    setUsers((current) =>
-      current.map((user) =>
-        user.id === userId ? { ...user, status: nextStatus } : user,
+  function handleApproveIncident(id) {
+    setIncidents((current) =>
+      current.map((incident) =>
+        incident.id === id ? { ...incident, status: "مغلق" } : incident,
       ),
     );
-    addAuditEntry(
-      `${nextStatus === "نشط" ? "تفعيل" : "تعليق"} حساب ${targetUser.name}`,
-      currentUser?.name || "النظام",
-    );
-    pushToast(
-      "success",
-      "تم تحديث حالة الحساب",
-      `الحساب ${targetUser.name} أصبح ${nextStatus}.`,
-    );
-  };
+    pushAudit("اعتماد مباشرة", `تم اعتماد وإغلاق المباشرة رقم ${id}`);
+  }
 
-  const handleUpdateUserRole = (userId, roleKey) => {
-    const targetUser = users.find((user) => user.id === userId);
-    const role = getRoleByKey(roleKey);
+  function handleDeleteIncident(id) {
+    if (!window.confirm("حذف المباشرة؟")) return;
+    setIncidents((current) => current.filter((incident) => incident.id !== id));
+    pushAudit("حذف مباشرة", `تم حذف المباشرة رقم ${id}`);
+  }
 
-    if (!targetUser || targetUser.roleKey === roleKey) {
+  function handleAddUser(form) {
+    const name = form.name.trim() || "مستخدم جديد";
+    const nextUser = {
+      id: Date.now(),
+      name,
+      mobile: form.mobile.trim() || "غير محدد",
+      role: form.role,
+      city: form.city,
+      team: form.team || "غير محدد",
+      status: "نشط",
+    };
+    setUsers((current) => [...current, nextUser]);
+    pushAudit("إضافة مستخدم", `تم إضافة المستخدم: ${name}`);
+    alert("تم إضافة المستخدم");
+  }
+
+  function handleAddDepartment(name) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      alert("اكتب اسم القسم");
       return;
     }
-
-    setUsers((current) =>
-      current.map((user) => (user.id === userId ? { ...user, roleKey } : user)),
-    );
-    addAuditEntry(
-      `تعديل دور ${targetUser.name} إلى ${role?.label || roleKey}`,
-      currentUser?.name || "النظام",
-    );
-    pushToast(
-      "success",
-      "تم تحديث الدور",
-      `تم تعيين ${role?.label || roleKey} للمستخدم ${targetUser.name}.`,
-    );
-  };
-
-  const handleToggleSecuritySetting = (settingKey) => {
-    setSecuritySettings((current) => {
-      const next = {
-        ...current,
-        [settingKey]: !current[settingKey],
-      };
-
-      const label =
-        settingKey === "requireOtpForSupervisors"
-          ? "سياسة التحقق الثنائي"
-          : "سياسة تقييد التصدير";
-      addAuditEntry(
-        `${next[settingKey] ? "تفعيل" : "تعطيل"} ${label}`,
-        currentUser?.name || "النظام",
-      );
-      pushToast(
-        "success",
-        "تم تحديث السياسة",
-        `${label} ${next[settingKey] ? "مفعلة" : "معطلة"} الآن.`,
-      );
-
-      return next;
-    });
-  };
-
-  const handleAddDepartment = (name) => {
-    if (departments.includes(name)) {
-      pushToast("danger", "القسم موجود مسبقًا", `القسم ${name} مسجل بالفعل.`);
+    if (departments.includes(trimmed)) {
+      alert("القسم موجود مسبقًا");
       return;
     }
+    setDepartments((current) => [...current, trimmed]);
+    pushAudit("إضافة قسم", `تم إضافة القسم: ${trimmed}`);
+  }
 
-    setDepartments((current) => [...current, name]);
-    addAuditEntry(`إضافة قسم جديد باسم ${name}`, currentUser?.name || "النظام");
-    pushToast("success", "تمت إضافة القسم", `أضيف القسم ${name} إلى القائمة.`);
-  };
-
-  const handleDeleteDepartment = (name) => {
+  function handleDeleteDepartment(name) {
+    if (!window.confirm(`حذف القسم: ${name}؟`)) return;
     setDepartments((current) => current.filter((department) => department !== name));
-    addAuditEntry(`حذف القسم ${name}`, currentUser?.name || "النظام");
-    pushToast("success", "تم حذف القسم", `أزيل القسم ${name} من القائمة.`);
-  };
+    pushAudit("حذف قسم", `تم حذف القسم: ${name}`);
+  }
 
-  const handleAddCity = (name) => {
-    if (cities.includes(name)) {
-      pushToast("danger", "المدينة موجودة مسبقًا", `المدينة ${name} مسجلة بالفعل.`);
+  function handleAddCity(name) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      alert("اكتب اسم المدينة");
       return;
     }
+    if (cities.includes(trimmed)) {
+      alert("المدينة موجودة مسبقًا");
+      return;
+    }
+    setCities((current) => [...current, trimmed]);
+    pushAudit("إضافة مدينة", `تم إضافة المدينة: ${trimmed}`);
+  }
 
-    setCities((current) => [...current, name]);
-    addAuditEntry(`إضافة مدينة جديدة باسم ${name}`, currentUser?.name || "النظام");
-    pushToast("success", "تمت إضافة المدينة", `أضيفت المدينة ${name} إلى القائمة.`);
-  };
-
-  const handleDeleteCity = (name) => {
+  function handleDeleteCity(name) {
+    if (!window.confirm(`حذف المدينة ومواقعها: ${name}؟`)) return;
     setCities((current) => current.filter((city) => city !== name));
     setSites((current) => current.filter((site) => site.city !== name));
-    addAuditEntry(`حذف المدينة ${name} ومواقعها المرتبطة`, currentUser?.name || "النظام");
-    pushToast("success", "تم حذف المدينة", `أزيلت المدينة ${name} مع مواقعها المرتبطة.`);
-  };
+    pushAudit("حذف مدينة", `تم حذف المدينة ومواقعها: ${name}`);
+  }
 
-  const handleAddSite = ({ city, name }) => {
-    const exists = sites.some((site) => site.city === city && site.name === name);
-    if (exists) {
-      pushToast("danger", "الموقع موجود مسبقًا", `الموقع ${name} مسجل بالفعل في ${city}.`);
+  function handleAddSite(city, name) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      alert("اكتب اسم الموقع");
       return;
     }
+    if (sites.some((site) => site.city === city && site.name === trimmed)) {
+      alert("الموقع موجود مسبقًا");
+      return;
+    }
+    setSites((current) => [...current, { city, name: trimmed }]);
+    pushAudit("إضافة موقع", `تم إضافة موقع: ${trimmed} في ${city}`);
+  }
 
-    setSites((current) => [...current, { city, name }]);
-    addAuditEntry(`إضافة موقع موسمي ${name} في ${city}`, currentUser?.name || "النظام");
-    pushToast("success", "تمت إضافة الموقع", `أضيف الموقع ${name} ضمن ${city}.`);
-  };
-
-  const handleDeleteSite = (index) => {
+  function handleDeleteSite(index) {
     const site = sites[index];
-    if (!site) {
-      return;
-    }
-
+    if (!site) return;
+    if (!window.confirm(`حذف الموقع: ${site.name}؟`)) return;
     setSites((current) => current.filter((_, currentIndex) => currentIndex !== index));
-    addAuditEntry(`حذف الموقع الموسمي ${site.name} من ${site.city}`, currentUser?.name || "النظام");
-    pushToast("success", "تم حذف الموقع", `أزيل الموقع ${site.name} من ${site.city}.`);
-  };
+    pushAudit("حذف موقع", `تم حذف موقع: ${site.name}`);
+  }
 
-  if (!loggedIn) {
+  function handleResetData() {
+    if (!window.confirm("مسح كل البيانات التجريبية؟")) return;
+    localStorage.removeItem(STORAGE_KEYS.users);
+    localStorage.removeItem(STORAGE_KEYS.incidents);
+    localStorage.removeItem(STORAGE_KEYS.departments);
+    localStorage.removeItem(STORAGE_KEYS.cities);
+    localStorage.removeItem(STORAGE_KEYS.sites);
+    localStorage.removeItem(STORAGE_KEYS.auditLogs);
+    localStorage.removeItem(STORAGE_KEYS.incidentSequence);
+    localStorage.removeItem(STORAGE_KEYS.currentUserId);
+    window.location.reload();
+  }
+
+  if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={handleLogin}
-        isSubmitting={isLoginLoading}
         users={users}
-        selectedUserId={loginUserId}
-        onSelectUser={(event) => setLoginUserId(event.target.value)}
-        pin={loginPin}
-        onPinChange={(event) => setLoginPin(event.target.value)}
+        selectedUserId={selectedUserId}
+        onSelectUser={setSelectedUserId}
+        pin={pin}
+        onPinChange={setPin}
+        onLogin={handleLogin}
       />
     );
   }
 
-  const pages = {
-    dashboard: <Dashboard setActive={setActive} incidents={incidents} currentUser={currentUser} />,
-    new: (
-      <NewIncident
-        currentUser={currentUser}
-        incidents={incidents}
-        cities={cities}
-        sites={sites}
-        onSaveIncident={(incident) => {
-          const nextSequence = Math.max(Number(incidentSequence || 0), deriveIncidentSequence(incidents)) + 1;
-          const createdIncident = {
-            ...incident,
-            id: getNextIncidentNumber(nextSequence),
-          };
-          setIncidentSequence(String(nextSequence));
-          setIncidents((current) => [...current, createdIncident]);
-          addAuditEntry(`إنشاء مباشرة ${createdIncident.id} بواسطة ${currentUser.name}`, currentUser.name);
-          return createdIncident;
-        }}
-        onToast={pushToast}
-        onNotify={addNotification}
-      />
-    ),
-    incidents: (
-      <Incidents
-        incidents={incidents}
-        currentUser={currentUser}
-        onApproveIncident={(incidentId) => {
-          setIncidents((current) =>
-            current.map((incident) =>
-              incident.id === incidentId ? { ...incident, status: "مغلق" } : incident,
-            ),
-          );
-          addAuditEntry(`اعتماد وإغلاق المباشرة ${incidentId}`, currentUser.name);
-          pushToast("success", "تم اعتماد الحالة", `أغلقت المباشرة ${incidentId} بنجاح.`);
-        }}
-        onDeleteIncident={(incidentId) => {
-          setIncidents((current) => current.filter((incident) => incident.id !== incidentId));
-          addAuditEntry(`حذف المباشرة ${incidentId}`, currentUser.name);
-          pushToast("success", "تم حذف المباشرة", `حذفت المباشرة ${incidentId} من السجل.`);
-        }}
-      />
-    ),
-    reports: <Reports incidents={incidents} currentUser={currentUser} onToast={pushToast} />,
-    users: (
-      <UsersManagement
-        users={users}
-        currentUser={currentUser}
-        departments={departments}
-        cities={cities}
-        onAddUser={handleAddUser}
-        onToggleUserStatus={handleToggleUserStatus}
-        onUpdateUserRole={handleUpdateUserRole}
-      />
-    ),
-    settings: (
-      <SecurityPermissions
-        currentUser={currentUser}
-        securitySettings={securitySettings}
-        onToggleSetting={handleToggleSecuritySetting}
-        departments={departments}
-        cities={cities}
-        sites={sites}
-        onAddDepartment={handleAddDepartment}
-        onDeleteDepartment={handleDeleteDepartment}
-        onAddCity={handleAddCity}
-        onDeleteCity={handleDeleteCity}
-        onAddSite={handleAddSite}
-        onDeleteSite={handleDeleteSite}
-        incidentSequence={incidentSequence}
-        auditLog={auditLog}
-      />
-    ),
-  };
-
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <FloatingToasts items={toasts} />
-      <div className="flex min-h-screen">
-        <Sidebar active={active} setActive={setActive} currentUser={currentUser} />
-        <Drawer open={mobileNavOpen} onClose={() => setMobileNavOpen(false)}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-red-600 p-3 text-white">
-                <HeartPulse size={22} />
-              </div>
-              <div>
-                <p className="font-bold text-slate-900">بوابة المباشرة الموسمية</p>
-                <p className="text-xs text-slate-500">تنقل سريع لفرق الحج والعمرة</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen(false)}
-              className="rounded-2xl p-2 text-slate-400"
-            >
-              <X size={18} />
-            </button>
-          </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="lg:grid lg:grid-cols-[320px_1fr]">
+        <Sidebar
+          currentUser={currentUser}
+          activePage={activePage}
+          onNavigate={navigate}
+          onLogout={handleLogout}
+          mobileOpen={mobileOpen}
+          onCloseMobile={() => setMobileOpen(false)}
+        />
 
-          <div className="mt-6 rounded-3xl bg-slate-50 p-4">
-            <p className="font-medium text-slate-900">{currentUser?.name}</p>
-            <p className="mt-1 text-sm text-slate-500">{currentRole?.label}</p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-              <span className="rounded-full bg-white px-3 py-1 shadow-sm">
-                <MapPin size={13} className="ml-1 inline" />
-                {currentUser?.scope}
-              </span>
-              <span className="rounded-full bg-white px-3 py-1 shadow-sm">
-                {unreadCount} تنبيهات
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-6">
-            <nav className="space-y-2 lg:hidden">
-              {navItems
-                .filter((item) => canAccessPage(currentUser, item.key))
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = active === item.key;
-
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setActive(item.key)}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-red-50 text-red-700"
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <Icon size={19} />
-                      {item.label}
-                    </button>
-                  );
-                })}
-            </nav>
-          </div>
-        </Drawer>
-
-        <main className="min-w-0 flex-1 pb-24 lg:pb-0">
+        <main className="min-w-0">
           <Header
-            active={active}
-            setActive={setActive}
             currentUser={currentUser}
-            onOpenMobileNav={() => setMobileNavOpen(true)}
-            onLogout={handleLogout}
-            unreadCount={unreadCount}
-            notificationOpen={notificationOpen}
-            setNotificationOpen={setNotificationOpen}
-            notifications={notifications}
-            isPageLoading={isPageLoading}
+            activePage={activePage}
+            onQuickNew={() => setActivePage("new")}
+            onOpenMenu={() => setMobileOpen(true)}
           />
-          <div className="p-4 lg:p-8">
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              {pages[active]}
-            </motion.div>
+
+          <div className="space-y-6 p-5 lg:p-8">
+            {activePage === "dashboard" ? <DashboardPage incidents={scopedIncidents} /> : null}
+            {activePage === "new" ? (
+              <NewIncidentPage
+                cities={cities}
+                sites={sites}
+                currentUser={currentUser}
+                onSave={handleSaveIncident}
+                onCancel={() => setActivePage("dashboard")}
+              />
+            ) : null}
+            {activePage === "incidents" ? (
+              <IncidentsPage
+                incidents={scopedIncidents}
+                currentUser={currentUser}
+                onApprove={handleApproveIncident}
+                onDelete={handleDeleteIncident}
+              />
+            ) : null}
+            {activePage === "reports" ? (
+              <ReportsPage incidents={scopedIncidents} currentUser={currentUser} />
+            ) : null}
+            {activePage === "users" ? (
+              <UsersPage
+                users={users}
+                cities={cities}
+                departments={departments}
+                onAddUser={handleAddUser}
+              />
+            ) : null}
+            {activePage === "security" ? (
+              <SecurityPage
+                departments={departments}
+                cities={cities}
+                sites={sites}
+                auditLogs={auditLogs}
+                incidentSequence={incidentSequence}
+                onAddDepartment={handleAddDepartment}
+                onDeleteDepartment={handleDeleteDepartment}
+                onAddCity={handleAddCity}
+                onDeleteCity={handleDeleteCity}
+                onAddSite={handleAddSite}
+                onDeleteSite={handleDeleteSite}
+                onResetData={handleResetData}
+              />
+            ) : null}
           </div>
         </main>
       </div>
-      <BottomNav active={active} setActive={setActive} currentUser={currentUser} />
     </div>
   );
 }
